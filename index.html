@@ -121,22 +121,17 @@ if(isMobileDevice){
       <h2>5. 일별 출력일지</h2>
       <div class="toolbar">
         <div class="seg" id="attSeg">
-          <button type="button" class="seg-btn active" data-mode="month" onclick="setViewMode('month')">월간</button>
+          <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
           <button type="button" class="seg-btn" data-mode="week" onclick="setViewMode('week')">주간</button>
+          <button type="button" class="seg-btn" data-mode="month" onclick="setViewMode('month')">월간</button>
         </div>
         <span id="attMonthWrap"><label>기준월</label> <input type="month" id="attMonth" class="f" onchange="onMonthChange(this.value)"></span>
-        <span id="attWeekWrap" style="display:none;">
-          <button class="btn sm ghost" onclick="shiftWeekBtn(-1)">◀</button>
-          <input type="week" id="attWeek" class="f" onchange="onWeekChange(this.value)">
-          <button class="btn sm ghost" onclick="shiftWeekBtn(1)">▶</button>
-          <button class="btn sm ghost" onclick="goThisWeek()">이번주</button>
-          <span id="attWeekRangeLabel" style="font-size:12px;color:var(--lbl);"></span>
-        </span>
+        <span id="attRangeLabel" style="display:none; font-size:12px; color:var(--lbl);"></span>
         <span id="attSummary" style="font-size:12px;color:var(--lbl);"></span>
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
       <div class="tablewrap"><div id="attTableWrap">불러오는 중...</div></div>
-      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(수동, 원본 서식과 동일하게 개별 입력)</div>
+      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(일별 모드에서만 수동 입력 가능) · 주간/월간은 데이터가 있는 전체 기간을 주 단위/월 단위로 합산해서 보여줍니다(개별 날짜 수정은 일별 모드에서)</div>
     </div>
   </div>
 
@@ -146,21 +141,16 @@ if(isMobileDevice){
       <h2>공종별 인원투입계획 및 실투입 비교</h2>
       <div class="toolbar">
         <div class="seg" id="posSeg">
-          <button type="button" class="seg-btn active" data-mode="month" onclick="setViewMode('month')">월간</button>
+          <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
           <button type="button" class="seg-btn" data-mode="week" onclick="setViewMode('week')">주간</button>
+          <button type="button" class="seg-btn" data-mode="month" onclick="setViewMode('month')">월간</button>
         </div>
         <span id="posMonthWrap"><label>기준월</label> <input type="month" id="posMonth" class="f" onchange="onMonthChange(this.value)"></span>
-        <span id="posWeekWrap" style="display:none;">
-          <button class="btn sm ghost" onclick="shiftWeekBtn(-1)">◀</button>
-          <input type="week" id="posWeek" class="f" onchange="onWeekChange(this.value)">
-          <button class="btn sm ghost" onclick="shiftWeekBtn(1)">▶</button>
-          <button class="btn sm ghost" onclick="goThisWeek()">이번주</button>
-          <span id="posWeekRangeLabel" style="font-size:12px;color:var(--lbl);"></span>
-        </span>
+        <span id="posRangeLabel" style="display:none; font-size:12px; color:var(--lbl);"></span>
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
       <div class="tablewrap"><div id="posTableWrap">불러오는 중...</div></div>
-      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동)</div>
+      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동) · 계획인원 수정은 일별 모드에서만 가능, 주간/월간은 전체 기간을 합산해서 보여주는 조회 전용 화면입니다</div>
     </div>
   </div>
 
@@ -205,7 +195,7 @@ if(isMobileDevice){
         </tr></thead>
         <tbody id="matBody"></tbody>
       </table></div>
-      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수이며, 자동 계산됩니다.</div>
+      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. Start/Finish 기본 구간은 1년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다.</div>
     </div>
   </div>
 </div>
@@ -297,10 +287,10 @@ function monthDays(monthStr){
   return arr;
 }
 
-// ---------- 월간/주간 보기 전환 ----------
-var viewMode='month';        // 'month' | 'week'
-var curWeek=isoWeekStringFromDate(new Date());
-var KDOW=['일','월','화','수','목','금','토'];
+// ---------- 일별/주간/월간 보기 전환 ----------
+// 일별=선택한 달의 날짜별 그리드(기존 방식) · 주간=데이터가 있는 전체 기간을 주 단위로 합산해서 나열 · 월간=데이터가 있는 전체 기간을 월 단위로 합산해서 나열
+var viewMode='day';        // 'day' | 'week' | 'month'
+var dataRange={start:null, end:null};   // 실제 daily_reports가 존재하는 첫날~마지막날(주간/월간 모드의 표시 범위 기준)
 function isoWeekStringFromDate(d){
   var date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
   var dayNum=(date.getUTCDay()+6)%7;
@@ -319,59 +309,59 @@ function mondayFromISOWeekString(weekStr){
   else simple.setUTCDate(simple.getUTCDate()+8-dow);
   return simple;
 }
-function weekDaysFromWeekString(weekStr){
-  var mon=mondayFromISOWeekString(weekStr);
-  var arr=[];
-  for(var i=0;i<7;i++){
-    var d=new Date(mon); d.setUTCDate(mon.getUTCDate()+i);
-    arr.push(d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate()));
+function currentPeriodDays(){ return monthDays(document.getElementById('attMonth').value); }
+// 데이터 범위 전체를 주 단위(월~일)로 쪼갠 버킷 목록. 각 버킷={days:[...7일],label,cls}
+function weekBucketsInRange(startStr, endStr){
+  if(!startStr || !endStr) return [];
+  var cur = mondayFromISOWeekString(isoWeekStringFromDate(new Date(startStr+'T00:00:00')));
+  var endDate = new Date(endStr+'T00:00:00');
+  var buckets=[];
+  var guard=0;
+  while(cur<=endDate && guard<300){
+    guard++;
+    var days=[];
+    for(var i=0;i<7;i++){ var d=new Date(cur); d.setUTCDate(cur.getUTCDate()+i); days.push(d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())); }
+    var label=(+days[0].slice(5,7))+'/'+(+days[0].slice(8,10))+'~'+(+days[6].slice(5,7))+'/'+(+days[6].slice(8,10));
+    buckets.push({days:days, label:label, cls:''});
+    cur.setUTCDate(cur.getUTCDate()+7);
   }
-  return arr;
+  return buckets;
 }
-function currentPeriodDays(){
-  return viewMode==='week' ? weekDaysFromWeekString(curWeek) : monthDays(document.getElementById('attMonth').value);
+// 데이터 범위 전체를 월 단위로 쪼갠 버킷 목록. 각 버킷={days:[...그 달의 모든 날짜],label,cls}
+function monthBucketsInRange(startStr, endStr){
+  if(!startStr || !endStr) return [];
+  var y=+startStr.slice(0,4), m=+startStr.slice(5,7);
+  var ey=+endStr.slice(0,4), em=+endStr.slice(5,7);
+  var buckets=[];
+  var guard=0;
+  while((y<ey || (y===ey && m<=em)) && guard<60){
+    guard++;
+    var ms=y+'-'+pad(m);
+    buckets.push({days:monthDays(ms), label:ms, cls:''});
+    m++; if(m>12){ m=1; y++; }
+  }
+  return buckets;
 }
-function updateWeekRangeLabel(){
-  var days=weekDaysFromWeekString(curWeek);
-  var lbl=days[0]+' ~ '+days[6];
-  document.getElementById('attWeekRangeLabel').textContent=lbl;
-  document.getElementById('posWeekRangeLabel').textContent=lbl;
+function buildColumns(){
+  if(viewMode==='week') return weekBucketsInRange(dataRange.start, dataRange.end);
+  if(viewMode==='month') return monthBucketsInRange(dataRange.start, dataRange.end);
+  return currentPeriodDays().map(function(d){
+    var hn=holidayNameForDate(d);
+    return {days:[d], label:(+d.slice(8,10)), cls:dowClass(d)+(hn?' hol':''), title:hn||''};
+  });
+}
+function updateRangeLabelUI(){
+  var txt = (dataRange.start && dataRange.end) ? ('데이터 범위: '+dataRange.start+' ~ '+dataRange.end) : '표시할 출력 데이터가 아직 없습니다';
+  document.getElementById('attRangeLabel').textContent = txt;
+  document.getElementById('posRangeLabel').textContent = txt;
 }
 function setViewMode(mode){
   viewMode=mode;
   ['att','pos'].forEach(function(p){
     document.querySelectorAll('#'+p+'Seg .seg-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode===mode); });
-    document.getElementById(p+'MonthWrap').style.display = mode==='month' ? '' : 'none';
-    document.getElementById(p+'WeekWrap').style.display = mode==='week' ? '' : 'none';
+    document.getElementById(p+'MonthWrap').style.display = mode==='day' ? '' : 'none';
+    document.getElementById(p+'RangeLabel').style.display = mode==='day' ? 'none' : '';
   });
-  if(mode==='week'){
-    document.getElementById('attWeek').value=curWeek;
-    document.getElementById('posWeek').value=curWeek;
-    updateWeekRangeLabel();
-  }
-  loadPeriodData();
-}
-function onWeekChange(v){
-  curWeek=v;
-  document.getElementById('attWeek').value=v;
-  document.getElementById('posWeek').value=v;
-  updateWeekRangeLabel();
-  loadPeriodData();
-}
-function shiftWeekBtn(delta){
-  var mon=mondayFromISOWeekString(curWeek);
-  mon.setUTCDate(mon.getUTCDate()+delta*7);
-  curWeek=isoWeekStringFromDate(mon);
-  document.getElementById('attWeek').value=curWeek;
-  document.getElementById('posWeek').value=curWeek;
-  updateWeekRangeLabel();
-  loadPeriodData();
-}
-function goThisWeek(){
-  curWeek=isoWeekStringFromDate(new Date());
-  document.getElementById('attWeek').value=curWeek;
-  document.getElementById('posWeek').value=curWeek;
-  updateWeekRangeLabel();
   loadPeriodData();
 }
 function fixedHolidaysForYear(year){ return FIXED_HOLIDAYS_MMDD.map(function(h){ return {date:year+'-'+h.md,name:h.name}; }); }
@@ -405,9 +395,6 @@ async function init(){
   var cur = todayStr().slice(0,7);
   document.getElementById('attMonth').value = cur;
   document.getElementById('posMonth').value = cur;
-  document.getElementById('attWeek').value = curWeek;
-  document.getElementById('posWeek').value = curWeek;
-  updateWeekRangeLabel();
   await loadAppSettings();
   await loadMembers();
   await loadPeriodData();
@@ -428,29 +415,19 @@ async function loadMembers(){
   renderMigBanner();
 }
 
-async function loadPeriodData(){
-  if(viewMode==='month'){
-    var monthStr = document.getElementById('attMonth').value;
-    document.getElementById('posMonth').value = monthStr;
-  }
-  var days = currentPeriodDays();
-  var start = days[0], end = days[days.length-1];
-
-  var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
-  attByMemberDate = {};
-  if(!res.error){
-    (res.data||[]).forEach(function(row){
-      (row.crew||[]).forEach(function(c){
-        if(!c.member_id) return;
-        if(!attByMemberDate[c.member_id]) attByMemberDate[c.member_id] = {};
-        var cur = attByMemberDate[c.member_id][row.date] || {};
-        if(c.checkInAt) cur.checkIn = true;
-        if(c.overtimeCheckAt) cur.overtime = true;
-        attByMemberDate[c.member_id][row.date] = cur;
-      });
+function applyReportRows(rows){
+  (rows||[]).forEach(function(row){
+    (row.crew||[]).forEach(function(c){
+      if(!c.member_id) return;
+      if(!attByMemberDate[c.member_id]) attByMemberDate[c.member_id] = {};
+      var cur = attByMemberDate[c.member_id][row.date] || {};
+      if(c.checkInAt) cur.checkIn = true;
+      if(c.overtimeCheckAt) cur.overtime = true;
+      attByMemberDate[c.member_id][row.date] = cur;
     });
-  }
-
+  });
+}
+async function applyManualRows(start, end){
   manualByKey = {};
   var mres = await sb.from('attendance_manual').select('member_id,date,extra,leave').gte('date',start).lte('date',end);
   if(mres.error){
@@ -459,9 +436,37 @@ async function loadPeriodData(){
     manualTableOk = true;
     (mres.data||[]).forEach(function(r){ manualByKey[r.member_id+'|'+r.date] = r; });
   }
+}
+async function loadPeriodData(){
+  attByMemberDate = {};
+  if(viewMode==='day'){
+    var monthStr = document.getElementById('attMonth').value;
+    document.getElementById('posMonth').value = monthStr;
+    var days = currentPeriodDays();
+    var start = days[0], end = days[days.length-1];
+    var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
+    if(!res.error) applyReportRows(res.data);
+    await applyManualRows(start, end);
+  } else {
+    // 주간/월간(합산) 모드는 프로젝트 전체 기간 데이터를 다 불러와서 실제 데이터 범위를 계산
+    var res2 = await sb.from('daily_reports').select('team,date,crew').order('date');
+    var minD=null, maxD=null;
+    if(!res2.error){
+      (res2.data||[]).forEach(function(row){
+        if(!minD || row.date<minD) minD=row.date;
+        if(!maxD || row.date>maxD) maxD=row.date;
+      });
+      applyReportRows(res2.data);
+    }
+    dataRange = {start:minD, end:maxD};
+    updateRangeLabelUI();
+    if(minD && maxD){ await applyManualRows(minD, maxD); }
+    else { manualByKey={}; manualTableOk=true; }
+  }
   renderMigBanner();
-  renderAttendanceTable(days);
-  renderPositionTable(days);
+  var cols = buildColumns();
+  renderAttendanceTable(cols);
+  renderPositionTable(cols);
 }
 
 function renderMigBanner(){
@@ -486,32 +491,36 @@ function membersSorted(){
     return (a.name||'').localeCompare(b.name||'','ko');
   });
 }
-function dayHeadHtml(days){
-  return days.map(function(d){
-    var dow=new Date(d+'T00:00:00').getDay();
-    var hn=holidayNameForDate(d);
-    var cls = dowClass(d) + (hn?' hol':'');
-    var label = viewMode==='week' ? ((+d.slice(5,7))+'/'+(+d.slice(8,10))+'('+KDOW[dow]+')') : (+d.slice(8,10));
-    return '<th class="'+cls+'" title="'+(hn||'')+'">'+label+'</th>';
+// cols: [{days:[...], label, cls, title}] — 일별 모드는 1일짜리 col, 주간/월간 모드는 여러 날을 합산하는 col
+function colHeadHtml(cols){
+  return cols.map(function(c){
+    return '<th class="'+(c.cls||'')+'" title="'+(c.title||'')+'">'+c.label+'</th>';
   }).join('');
 }
-function renderAttendanceTable(days){
+function sumRowOverCol(getter, col){ return col.days.reduce(function(s,d){ return s+(getter(d)||0); },0); }
+function renderAttendanceTable(cols){
   var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
   var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
-  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:70px;">이름</th><th class="lbl2" style="min-width:70px;">직책/구분</th>'+dayHeadHtml(days)+'<th>합계</th></tr></thead><tbody>';
-  html += '<tr class="sec-row"><td colspan="'+(days.length+3)+'">간접인원</td></tr>';
-  mgmt.forEach(function(m){ html += memberBlockHtml(m, days); });
-  html += '<tr class="sec-row"><td colspan="'+(days.length+3)+'">직접인원</td></tr>';
-  field.forEach(function(m){ html += memberBlockHtml(m, days); });
+  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:70px;">이름</th><th class="lbl2" style="min-width:70px;">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
+  if(!cols.length){
+    html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
+  } else {
+    html += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'">간접인원</td></tr>';
+    mgmt.forEach(function(m){ html += memberBlockHtml(m, cols); });
+    html += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'">직접인원</td></tr>';
+    field.forEach(function(m){ html += memberBlockHtml(m, cols); });
+  }
   html += '</tbody></table>';
   document.getElementById('attTableWrap').innerHTML = html;
+  var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
   var totalMD = mgmt.concat(field).reduce(function(s,m){
     var rec = attByMemberDate[m.id]||{};
-    return s + days.filter(function(d){ return rec[d] && rec[d].checkIn; }).length;
+    return s + allDays.filter(function(d){ return rec[d] && rec[d].checkIn; }).length;
   },0);
-  document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · '+(viewMode==='week'?'이번주':'이번달')+' 총 출력 '+totalMD+'MD';
+  var periodLabel = viewMode==='day' ? '이번달' : (viewMode==='week' ? '전체기간(주간)' : '전체기간(월간)');
+  document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · '+periodLabel+' 총 출력 '+totalMD+'MD';
 }
-function memberBlockHtml(m, days){
+function memberBlockHtml(m, cols){
   var rec = attByMemberDate[m.id] || {};
   var rows = [
     {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:true},
@@ -524,24 +533,23 @@ function memberBlockHtml(m, days){
     html += '<tr>';
     if(i===0) html += '<th class="lbl" rowspan="5">'+esc(m.name)+'</th>';
     html += '<td class="lbl2">'+r.key+'</td>';
-    days.forEach(function(d){
-      var v = r.get(d);
-      var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'') + (r.auto?'':' flag'+(v?' on':''));
-      var onclick = r.auto ? '' : ' onclick="toggleManual(\''+m.id+'\',\''+d+'\',\''+r.field+'\')"';
-      html += '<td class="'+cls+'"'+onclick+'>'+(v?1:'')+'</td>';
+    cols.forEach(function(c){
+      var v = sumRowOverCol(r.get, c);
+      var single = c.days.length===1;
+      var cls = (c.cls||'') + (r.auto?'':' flag'+(v?' on':''));
+      var onclick = (r.auto || !single) ? '' : ' onclick="toggleManual(\''+m.id+'\',\''+c.days[0]+'\',\''+r.field+'\')"';
+      html += '<td class="'+cls+'"'+onclick+'>'+(v||'')+'</td>';
     });
     html += '<td></td></tr>';
   });
-  var totalHtml='';
-  var monthTotal=0;
+  var grandTotal=0;
   html += '<tr class="tot-row"><td class="lbl2">합계</td>';
-  days.forEach(function(d){
-    var t = rows.reduce(function(s,r){ return s + r.get(d); },0);
-    monthTotal += t;
-    var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'');
-    html += '<td class="'+cls+'">'+(t||'')+'</td>';
+  cols.forEach(function(c){
+    var t = rows.reduce(function(s,r){ return s + sumRowOverCol(r.get, c); },0);
+    grandTotal += t;
+    html += '<td class="'+(c.cls||'')+'">'+(t||'')+'</td>';
   });
-  html += '<td>'+monthTotal+'</td></tr>';
+  html += '<td>'+grandTotal+'</td></tr>';
   return html;
 }
 async function toggleManual(memberId, dateStr, field){
@@ -550,39 +558,47 @@ async function toggleManual(memberId, dateStr, field){
   var cur = manualByKey[key] || {member_id:memberId, date:dateStr, extra:0, leave:0};
   cur[field] = cur[field] ? 0 : 1;
   manualByKey[key] = cur;
-  renderAttendanceTable(currentPeriodDays());
+  renderAttendanceTable(buildColumns());
   var res = await sb.from('attendance_manual').upsert({member_id:memberId, date:dateStr, extra:cur.extra||0, leave:cur.leave||0}, {onConflict:'member_id,date'});
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); }
 }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
 // ---------- 공종별 인원투입계획 및 실투입 비교 ----------
-function renderPositionTable(days){
+function renderPositionTable(cols){
   var allPos = MGMT_POSITIONS.concat(FIELD_POSITIONS);
-  var editMonthStr = days[0].slice(0,7);           // 계획인원 수정칸은 첫날이 속한 달 기준(주간이 월 경계를 넘는 경우 포함)
+  var editMonthStr = document.getElementById('attMonth').value;   // 계획인원 수정은 일별 모드에서만(단일 달 기준이라 주간/월간 합산 화면에서는 편집 안 함)
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
-  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:80px;">직책</th><th class="lbl2" style="min-width:50px;">구분</th>'+dayHeadHtml(days)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
+  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:80px;">직책</th><th class="lbl2" style="min-width:50px;">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
+  if(!cols.length){
+    html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
+  } else {
   allPos.forEach(function(pos){
     var editVal = +(editMonthPlan[pos]||0);
     var planTotal=0, actTotal=0;
     var planRow='', actRow='';
-    days.forEach(function(d){
-      var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'');
-      var dayPlan = +((positionPlanQty[d.slice(0,7)]||{})[pos]||0);   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
-      var p = isNonWorkDay(d) ? '' : dayPlan;
-      if(p) planTotal += p;
-      planRow += '<td class="'+cls+'">'+(p||'')+'</td>';
-      var actCount = membersList.filter(function(m){
-        return m.position===pos && attByMemberDate[m.id] && attByMemberDate[m.id][d] && attByMemberDate[m.id][d].checkIn;
-      }).length;
-      if(actCount) actTotal += actCount;
-      actRow += '<td class="'+cls+'">'+(actCount||'')+'</td>';
+    cols.forEach(function(c){
+      var dayPlanSum = c.days.reduce(function(s,d){
+        if(isNonWorkDay(d)) return s;
+        return s + (+((positionPlanQty[d.slice(0,7)]||{})[pos]||0));   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
+      },0);
+      planTotal += dayPlanSum;
+      planRow += '<td class="'+(c.cls||'')+'">'+(dayPlanSum||'')+'</td>';
+      var actCount = c.days.reduce(function(s,d){
+        return s + membersList.filter(function(m){
+          return m.position===pos && attByMemberDate[m.id] && attByMemberDate[m.id][d] && attByMemberDate[m.id][d].checkIn;
+        }).length;
+      },0);
+      actTotal += actCount;
+      actRow += '<td class="'+(c.cls||'')+'">'+(actCount||'')+'</td>';
     });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
     var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
-    html += '<tr><td class="lbl" rowspan="2">'+esc(pos)+'<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)"></td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>';
+    var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
+    html += '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>';
     html += '<tr><td class="lbl2">A/F</td>'+actRow+'<td>'+(actTotal||'')+'</td></tr>';
   });
+  }
   html += '</tbody></table>';
   document.getElementById('posTableWrap').innerHTML = html;
 }
@@ -592,7 +608,7 @@ async function savePositionPlanQty(pos, val, monthStr){
   var res = await sb.from('app_settings').update({position_plan_qty:positionPlanQty}).eq('id','global');
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); return; }
   showToast('✅ 저장됨','var(--ok)');
-  renderPositionTable(currentPeriodDays());
+  renderPositionTable(buildColumns());
 }
 
 // ---------- 근로자명단 ----------
@@ -669,27 +685,37 @@ function networkDaysExclHolidays(startStr, endStr){
     if(!isNonWorkDay(ds)) cnt++;
     d.setDate(d.getDate()+1);
   }
-  return cnt;
+  return cnt-1;   // 원본 엑셀 수식 =NETWORKDAYS(시작,종료,공휴일)-1 과 동일하게 맞춤(착공일 1일을 빼는 방식)
+}
+// 선택한 달의 1일부터 11개월 뒤 말일까지, 총 1년치 기본 구간을 계산
+function oneYearRangeFromMonth(monthStr){
+  var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
+  var start = y+'-'+pad(m)+'-01';
+  var em=m+11, ey=y;
+  if(em>12){ em-=12; ey+=1; }
+  var lastDay = new Date(ey, em, 0).getDate();
+  var finish = ey+'-'+pad(em)+'-'+pad(lastDay);
+  return {start:start, finish:finish};
 }
 function loadMaterialPlan(forceReseed){
   if(materialPlan && materialPlan.length && !forceReseed){ renderMaterialTable(); return; }
   var monthStr = document.getElementById('attMonth').value || todayStr().slice(0,7);
-  var days = monthDays(monthStr);
+  var range = oneYearRangeFromMonth(monthStr);   // 기본 기간 1년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
   var planQty = appSettings.plan_qty || {};
   materialPlan = DEFAULT_MATERIAL_ITEMS.map(function(it){
     return {
       activity:'시공',
       name: it.name,
       unit: it.unit,
-      start: days[0],
-      finish: days[days.length-1],
+      start: range.start,
+      finish: range.finish,
       qty: planQty[it.name] || 0,
       perDay: 0,
       note: ''
     };
   });
   renderMaterialTable();
-  showToast('기본 목록으로 채웠습니다. 저장을 눌러 반영하세요','var(--brand-2)');
+  showToast('기본 목록으로 채웠습니다(기본 기간 1년). 저장을 눌러 반영하세요','var(--brand-2)');
 }
 function renderMaterialTable(){
   if(!materialPlan) materialPlan = [];
