@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>월별출력현황</title>
+<link rel="icon" type="image/png" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-180.png"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#1E3A5F"/>
+<meta name="apple-mobile-web-app-title" content="월별출력현황"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<style>
+:root{
+  --brand-1:#1E3A5F; --brand-2:#2E5F9E; --brand-3:#4A82C4;
+  --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#5A7A9A;
+  --field-bg:#F7FAFC; --field-bd:#C8D8E8;
+  --ok:#27AE60; --err:#E74C3C; --warn:#E67E22;
+  --sat:#2E5F9E; --sun:#C0392B; --hol:#FDEDEC;
+  --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"Consolas","D2Coding",monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0; padding:0;}
+body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-size:14px; padding-bottom:40px;}
+.app-header{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); padding:14px 16px; color:#fff; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.app-title{font-size:19px; font-weight:800; display:flex; align-items:center; gap:8px;}
+.app-title img{width:30px; height:30px; border-radius:6px;}
+.hdr-right{font-size:12px; opacity:.9; display:flex; align-items:center; gap:10px;}
+.site-name{font-size:12px; opacity:.85; margin-top:2px;}
+.tab-bar{display:flex; overflow-x:auto; background:var(--brand-1); position:sticky; top:0; z-index:50; box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.tab-btn{flex:0 0 auto; padding:11px 16px; border:none; background:transparent; color:#B9CBE0; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; font-family:var(--font-body); border-bottom:3px solid transparent;}
+.tab-btn.active{color:#fff; border-bottom-color:#fff; background:rgba(255,255,255,.08);}
+.container{max-width:1400px; margin:0 auto; padding:14px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.card{background:var(--card); border:1px solid var(--card-bd); border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,.05); margin-bottom:14px;}
+.card h2{font-size:16px; font-weight:800; color:var(--brand-1); margin:0 0 10px;}
+.toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+.toolbar label{font-size:12px; font-weight:700; color:var(--lbl);}
+.f{border:1px solid var(--card-bd); border-radius:6px; font-family:var(--font-mono); padding:6px 8px; font-size:13px; background:var(--field-bg); color:var(--ink);}
+.btn{border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:var(--font-body);}
+.btn.sm{padding:5px 10px; font-size:12px;}
+.btn.danger{background:var(--err);}
+.btn.ghost{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
+.tablewrap{overflow-x:auto; border:1px solid var(--card-bd); border-radius:8px;}
+table.dt{border-collapse:collapse; width:100%; font-size:12px; white-space:nowrap;}
+table.dt th, table.dt td{border:1px solid #E3EAF2; padding:5px 7px; text-align:center;}
+table.dt thead th{background:var(--brand-1); color:#fff; position:sticky; top:0; z-index:5; font-weight:700;}
+table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
+table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
+table.dt td.lbl2{position:sticky; left:70px; background:var(--field-bg); z-index:3; text-align:left;}
+table.dt .sec-row td{background:var(--brand-3); color:#fff; font-weight:800; text-align:left; position:sticky; left:0; z-index:4;}
+table.dt .tot-row td{background:#EAF1F8; font-weight:800;}
+table.dt .sat{color:var(--sat);}
+table.dt .sun{color:var(--sun);}
+table.dt .hol{background:var(--hol);}
+table.dt td.flag{cursor:pointer; user-select:none; color:var(--brand-2); font-weight:800;}
+table.dt td.flag.on{background:#E8F5EC; color:var(--ok);}
+table.dt td input.qi{width:56px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:right;}
+table.dt td input.dtx{width:110px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:center;}
+table.dt td input.txi{width:90px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-body); font-size:12px;}
+.badge{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;}
+.badge.ok{background:#E8F5EC; color:var(--ok);}
+.badge.warn{background:#FDF2E3; color:var(--warn);}
+.badge.err{background:#FDEDEC; color:var(--err);}
+.note{font-size:11px; color:var(--lbl); line-height:1.6; margin-top:8px;}
+.migbox{background:#FDF2E3; border:1px solid #F0C987; border-radius:10px; padding:12px; margin-bottom:14px; font-size:12px; color:#6B4E14;}
+.migbox pre{background:#2B2B2B; color:#F5F5F5; border-radius:8px; padding:10px; overflow-x:auto; font-size:11px; line-height:1.6; margin-top:6px;}
+.toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); max-width:calc(100vw - 32px); padding:10px 20px; border-radius:10px; font-size:14px; font-weight:700; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.2); opacity:0; pointer-events:none; transition:opacity .25s; white-space:normal; text-align:center; line-height:1.4; z-index:9998;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<script src="admin-gate.js"></script>
+
+<div class="app-header">
+  <div>
+    <div class="app-title"><img src="icon-mark.png" alt="">월별출력현황</div>
+    <div class="site-name">S-OIL SHAHEEN Project 계장공사 3공구 · 대선이엔씨</div>
+  </div>
+  <div class="hdr-right">
+    <span id="hdrToday"></span>
+    <button class="btn sm ghost" style="color:#fff;border-color:rgba(255,255,255,.4);" onclick="location.href='https://workreportdaesun.github.io/report/app/admin.html'">작업일보 관리자↗</button>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="att" onclick="switchTab('att')">출력일지</button>
+  <button class="tab-btn" data-tab="pos" onclick="switchTab('pos')">공종별 인원투입</button>
+  <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
+  <button class="tab-btn" data-tab="hol" onclick="switchTab('hol')">공휴일</button>
+  <button class="tab-btn" data-tab="mat" onclick="switchTab('mat')">물량소화계획</button>
+</div>
+
+<div class="container">
+  <div id="migBanner"></div>
+
+  <!-- 출력일지 -->
+  <div class="tab-panel active" id="panel-att">
+    <div class="card">
+      <h2>5. 일별 출력일지</h2>
+      <div class="toolbar">
+        <label>기준월</label>
+        <input type="month" id="attMonth" class="f" onchange="onMonthChange(this.value)">
+        <span id="attSummary" style="font-size:12px;color:var(--lbl);"></span>
+        <button class="btn sm ghost" onclick="loadMonthData()">새로고침</button>
+      </div>
+      <div class="tablewrap"><div id="attTableWrap">불러오는 중...</div></div>
+      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(수동, 원본 서식과 동일하게 개별 입력)</div>
+    </div>
+  </div>
+
+  <!-- 공종별 인원투입 -->
+  <div class="tab-panel" id="panel-pos">
+    <div class="card">
+      <h2>공종별 인원투입계획 및 실투입 비교</h2>
+      <div class="toolbar">
+        <label>기준월</label>
+        <input type="month" id="posMonth" class="f" onchange="onMonthChange(this.value)">
+        <button class="btn sm ghost" onclick="loadMonthData()">새로고침</button>
+      </div>
+      <div class="tablewrap"><div id="posTableWrap">불러오는 중...</div></div>
+      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동)</div>
+    </div>
+  </div>
+
+  <!-- 근로자명단 -->
+  <div class="tab-panel" id="panel-mem">
+    <div class="card">
+      <h2>근로자명단</h2>
+      <div class="toolbar"><span style="font-size:12px;color:var(--lbl);" id="memCount"></span></div>
+      <div class="tablewrap"><div id="memTableWrap">불러오는 중...</div></div>
+      <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 직책·작업분류·소속 수정은 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요.</div>
+    </div>
+  </div>
+
+  <!-- 공휴일 -->
+  <div class="tab-panel" id="panel-hol">
+    <div class="card">
+      <h2>공휴일</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="holYear" class="f" onchange="renderHolidayTable()"></select>
+        <button class="btn sm" onclick="addCustomHoliday()">+ 공휴일 추가</button>
+        <button class="btn sm ghost" onclick="saveHolidaysExtra()">저장</button>
+      </div>
+      <div class="tablewrap"><table class="dt" style="width:auto;"><thead><tr><th>No</th><th>날짜</th><th>명칭</th><th>구분</th><th></th></tr></thead><tbody id="holBody"></tbody></table></div>
+      <div class="note">신정·3·1절·어린이날·현충일·광복절·개천절·한글날·크리스마스는 매년 자동 적용됩니다. 설날/추석/대체공휴일 등은 매년 날짜가 달라 직접 추가해야 합니다.</div>
+    </div>
+  </div>
+
+  <!-- 물량소화계획 -->
+  <div class="tab-panel" id="panel-mat">
+    <div class="card">
+      <h2>6. 물량 소화 계획</h2>
+      <div class="toolbar">
+        <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
+        <button class="btn sm ghost" onclick="loadMaterialPlan(true)">기본목록으로 다시 채우기</button>
+      </div>
+      <div class="tablewrap"><table class="dt" id="matTable" style="width:auto;">
+        <thead><tr>
+          <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
+          <th>계약물량</th><th>작업일수<br>(DAY)</th><th>시공물량<br>(/DAY)</th>
+          <th>1인시공물량<br>(/DAY)</th><th>투입인력<br>(DAY)</th><th>예상<br>총투입인원</th><th>비고</th>
+        </tr></thead>
+        <tbody id="matBody"></tbody>
+      </table></div>
+      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수이며, 자동 계산됩니다.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+var SUPABASE_URL='https://feymoykefzfwucbrqoja.supabase.co';
+var SUPABASE_KEY='sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+if(!localStorage.getItem('member_id')){ location.href='login.html'; }
+
+var MGMT_POSITIONS=['현장소장','공무부장','공무과장','공사부장','공사차장','품질차장','품질과장','기사'];
+var FIELD_POSITIONS=['팀장','계장공','전공','조공','결선공','케이블공','LOOP','비계공','화기감시자','유도원','신호수','계기교정','기타'];
+
+var FIXED_HOLIDAYS_MMDD=[
+  {md:'01-01',name:'신정'},{md:'03-01',name:'3\u00b71\uc808'},{md:'05-05',name:'\uc5b4\ub9b0\uc774\ub0a0'},
+  {md:'06-06',name:'\ud604\ucda9\uc77c'},{md:'08-15',name:'\uad11\ubcf5\uc808'},{md:'10-03',name:'\uac1c\ucc9c\uc808'},
+  {md:'10-09',name:'\ud55c\uae00\ub0a0'},{md:'12-25',name:'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4'}
+];
+var DEFAULT_HOLIDAYS_EXTRA={
+  "2026":[
+    {date:'2026-02-16',name:'설날'},{date:'2026-02-17',name:'설날'},{date:'2026-02-18',name:'설날'},
+    {date:'2026-03-02',name:'대체공휴일'},
+    {date:'2026-05-24',name:'부처님오신날'},{date:'2026-05-25',name:'대체공휴일'},
+    {date:'2026-08-17',name:'대체공휴일'},
+    {date:'2026-09-24',name:'추석'},{date:'2026-09-25',name:'추석'},{date:'2026-09-26',name:'추석'},
+    {date:'2026-10-05',name:'대체공휴일'}
+  ]
+};
+var DEFAULT_MATERIAL_ITEMS=[
+  {name:'DCS Panel',unit:'LOT'},{name:'LCP',unit:'LOT'},{name:'Junction Box',unit:'EA'},
+  {name:'Field Instrument',unit:'EA'},{name:'Cable Duct',unit:'M'},{name:'Cable Tray',unit:'M'},
+  {name:'Conduit Pipe',unit:'M'},{name:'Air Pipe',unit:'M'},{name:'Hook Up',unit:'M'},
+  {name:'Stanchion',unit:'EA'},{name:'Support',unit:'M'},{name:'Connection',unit:'POINT'},
+  {name:'Line Check',unit:'POINT'},{name:'Loop Test',unit:'LOOP'},{name:'Leak Test',unit:'POINT'},
+  {name:'Instrument Calibration',unit:'EA'},{name:'Steam Tracing Tube',unit:'M'},
+  {name:'Steam Tracing Insulation',unit:'M'},{name:'Scaffolding',unit:'M2'},{name:'Others',unit:'EA'}
+];
+
+var appSettings={};
+var holidaysExtra={};
+var positionPlanQty={};
+var materialPlan=[];
+var membersList=[];
+var attByMemberDate={};   // member_id -> date -> {checkIn,overtime}
+var manualByKey={};       // "member_id|date" -> {extra,leave}
+var manualTableOk=true;
+var matColumnOk=true;
+
+function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function pad(n){ return n<10?'0'+n:''+n; }
+function showToast(msg,color){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=color||'var(--brand-2)'; t.classList.add('show');
+  clearTimeout(t._timer); t._timer=setTimeout(function(){ t.classList.remove('show'); },2400);
+}
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='mem') renderMembersTab();
+  if(name==='hol') renderHolidayTable();
+  if(name==='mat') renderMaterialTable();
+}
+function onMonthChange(v){
+  document.getElementById('attMonth').value = v;
+  document.getElementById('posMonth').value = v;
+  loadMonthData();
+}
+function monthDays(monthStr){
+  var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
+  var n=new Date(y,m,0).getDate();
+  var arr=[];
+  for(var d=1; d<=n; d++){ arr.push(y+'-'+pad(m)+'-'+pad(d)); }
+  return arr;
+}
+function fixedHolidaysForYear(year){ return FIXED_HOLIDAYS_MMDD.map(function(h){ return {date:year+'-'+h.md,name:h.name}; }); }
+function getHolidaysForYear(year){
+  var extra = holidaysExtra[year] || DEFAULT_HOLIDAYS_EXTRA[year] || [];
+  return fixedHolidaysForYear(year).concat(extra);
+}
+var _holCache={};
+function holidayNameForDate(dateStr){
+  var year = dateStr.slice(0,4);
+  if(!_holCache[year]){
+    var map={};
+    getHolidaysForYear(year).forEach(function(h){ map[h.date]=h.name; });
+    _holCache[year]=map;
+  }
+  return _holCache[year][dateStr] || null;
+}
+function isWeekend(dateStr){
+  var dow = new Date(dateStr+'T00:00:00').getDay();
+  return dow===0 || dow===6;
+}
+function dowClass(dateStr){
+  var dow = new Date(dateStr+'T00:00:00').getDay();
+  if(dow===0) return 'sun'; if(dow===6) return 'sat'; return '';
+}
+function isNonWorkDay(dateStr){ return isWeekend(dateStr) || !!holidayNameForDate(dateStr); }
+
+// ---------- init ----------
+async function init(){
+  document.getElementById('hdrToday').textContent = todayStr();
+  var cur = todayStr().slice(0,7);
+  document.getElementById('attMonth').value = cur;
+  document.getElementById('posMonth').value = cur;
+  await loadAppSettings();
+  await loadMembers();
+  await loadMonthData();
+}
+async function loadAppSettings(){
+  var res = await sb.from('app_settings').select('*').eq('id','global').single();
+  if(res.error){ showToast('설정을 불러오지 못했습니다','var(--err)'); return; }
+  appSettings = res.data || {};
+  holidaysExtra = appSettings.holidays_extra || {};
+  positionPlanQty = appSettings.position_plan_qty || {};
+  materialPlan = Array.isArray(appSettings.material_plan) ? appSettings.material_plan : null;
+  if(appSettings.material_plan === undefined) matColumnOk = false;
+}
+async function loadMembers(){
+  var res = await sb.from('members').select('id,name,position,cat,menu,team,area,phone,active,created_at').order('name');
+  if(res.error){ showToast('명단을 불러오지 못했습니다','var(--err)'); return; }
+  membersList = (res.data||[]).filter(function(m){ return m.active !== false; });
+  renderMigBanner();
+}
+
+async function loadMonthData(){
+  var monthStr = document.getElementById('attMonth').value;
+  document.getElementById('posMonth').value = monthStr;
+  var days = monthDays(monthStr);
+  var start = days[0], end = days[days.length-1];
+
+  var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
+  attByMemberDate = {};
+  if(!res.error){
+    (res.data||[]).forEach(function(row){
+      (row.crew||[]).forEach(function(c){
+        if(!c.member_id) return;
+        if(!attByMemberDate[c.member_id]) attByMemberDate[c.member_id] = {};
+        var cur = attByMemberDate[c.member_id][row.date] || {};
+        if(c.checkInAt) cur.checkIn = true;
+        if(c.overtimeCheckAt) cur.overtime = true;
+        attByMemberDate[c.member_id][row.date] = cur;
+      });
+    });
+  }
+
+  manualByKey = {};
+  var mres = await sb.from('attendance_manual').select('member_id,date,extra,leave').gte('date',start).lte('date',end);
+  if(mres.error){
+    manualTableOk = false;
+  } else {
+    manualTableOk = true;
+    (mres.data||[]).forEach(function(r){ manualByKey[r.member_id+'|'+r.date] = r; });
+  }
+  renderMigBanner();
+  renderAttendanceTable(monthStr, days);
+  renderPositionTable(monthStr, days);
+}
+
+function renderMigBanner(){
+  var msgs=[];
+  if(!manualTableOk){
+    msgs.push('<b>attendance_manual</b> 테이블이 없어 "추가/주월차" 수동입력이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.<pre>CREATE TABLE IF NOT EXISTS attendance_manual (\n  member_id text NOT NULL,\n  date date NOT NULL,\n  extra int DEFAULT 0,\n  leave int DEFAULT 0,\n  PRIMARY KEY (member_id, date)\n);\nALTER TABLE attendance_manual ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "public access" ON attendance_manual FOR ALL USING (true) WITH CHECK (true);</pre>');
+  }
+  if(!matColumnOk){
+    msgs.push('<b>app_settings.material_plan</b> 컬럼이 없어 물량소화계획이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_plan jsonb DEFAULT \'[]\'::jsonb;</pre>');
+  }
+  document.getElementById('migBanner').innerHTML = msgs.length ? '<div class="migbox">⚠️ '+msgs.join('<hr style="border:none;border-top:1px solid #F0C987;margin:10px 0;">')+'</div>' : '';
+}
+
+// ---------- 출력일지 ----------
+function positionGroup(pos){ return MGMT_POSITIONS.indexOf(pos)!==-1 ? 'mgmt' : 'field'; }
+function membersSorted(){
+  var order = MGMT_POSITIONS.concat(FIELD_POSITIONS);
+  return membersList.slice().sort(function(a,b){
+    var ia=order.indexOf(a.position), ib=order.indexOf(b.position);
+    if(ia===-1) ia=999; if(ib===-1) ib=999;
+    if(ia!==ib) return ia-ib;
+    return (a.name||'').localeCompare(b.name||'','ko');
+  });
+}
+function dayHeadHtml(days){
+  return days.map(function(d){
+    var dow=new Date(d+'T00:00:00').getDay();
+    var hn=holidayNameForDate(d);
+    var cls = dowClass(d) + (hn?' hol':'');
+    return '<th class="'+cls+'" title="'+(hn||'')+'">'+(+d.slice(8,10))+'</th>';
+  }).join('');
+}
+function renderAttendanceTable(monthStr, days){
+  var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
+  var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
+  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:70px;">이름</th><th class="lbl2" style="min-width:70px;">직책/구분</th>'+dayHeadHtml(days)+'<th>합계</th></tr></thead><tbody>';
+  html += '<tr class="sec-row"><td colspan="'+(days.length+3)+'">간접인원</td></tr>';
+  mgmt.forEach(function(m){ html += memberBlockHtml(m, days); });
+  html += '<tr class="sec-row"><td colspan="'+(days.length+3)+'">직접인원</td></tr>';
+  field.forEach(function(m){ html += memberBlockHtml(m, days); });
+  html += '</tbody></table>';
+  document.getElementById('attTableWrap').innerHTML = html;
+  var totalMD = mgmt.concat(field).reduce(function(s,m){
+    var rec = attByMemberDate[m.id]||{};
+    return s + days.filter(function(d){ return rec[d] && rec[d].checkIn; }).length;
+  },0);
+  document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · 이번달 총 출력 '+totalMD+'MD';
+}
+function memberBlockHtml(m, days){
+  var rec = attByMemberDate[m.id] || {};
+  var rows = [
+    {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:true},
+    {key:'연장', get:function(d){ return rec[d] && rec[d].overtime ? 1:0; }, auto:true},
+    {key:'추가', get:function(d){ var mk=manualByKey[m.id+'|'+d]; return mk ? (mk.extra||0) : 0; }, auto:false, field:'extra'},
+    {key:'주/월차', get:function(d){ var mk=manualByKey[m.id+'|'+d]; return mk ? (mk.leave||0) : 0; }, auto:false, field:'leave'}
+  ];
+  var html='';
+  rows.forEach(function(r,i){
+    html += '<tr>';
+    if(i===0) html += '<th class="lbl" rowspan="5">'+esc(m.name)+'</th>';
+    html += '<td class="lbl2">'+r.key+'</td>';
+    days.forEach(function(d){
+      var v = r.get(d);
+      var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'') + (r.auto?'':' flag'+(v?' on':''));
+      var onclick = r.auto ? '' : ' onclick="toggleManual(\''+m.id+'\',\''+d+'\',\''+r.field+'\')"';
+      html += '<td class="'+cls+'"'+onclick+'>'+(v?1:'')+'</td>';
+    });
+    html += '<td></td></tr>';
+  });
+  var totalHtml='';
+  var monthTotal=0;
+  html += '<tr class="tot-row"><td class="lbl2">합계</td>';
+  days.forEach(function(d){
+    var t = rows.reduce(function(s,r){ return s + r.get(d); },0);
+    monthTotal += t;
+    var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'');
+    html += '<td class="'+cls+'">'+(t||'')+'</td>';
+  });
+  html += '<td>'+monthTotal+'</td></tr>';
+  return html;
+}
+async function toggleManual(memberId, dateStr, field){
+  if(!manualTableOk){ showToast('⚠️ attendance_manual 테이블을 먼저 만들어주세요','var(--err)'); return; }
+  var key = memberId+'|'+dateStr;
+  var cur = manualByKey[key] || {member_id:memberId, date:dateStr, extra:0, leave:0};
+  cur[field] = cur[field] ? 0 : 1;
+  manualByKey[key] = cur;
+  var monthStr = document.getElementById('attMonth').value;
+  renderAttendanceTable(monthStr, monthDays(monthStr));
+  var res = await sb.from('attendance_manual').upsert({member_id:memberId, date:dateStr, extra:cur.extra||0, leave:cur.leave||0}, {onConflict:'member_id,date'});
+  if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); }
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+// ---------- 공종별 인원투입계획 및 실투입 비교 ----------
+function renderPositionTable(monthStr, days){
+  var allPos = MGMT_POSITIONS.concat(FIELD_POSITIONS);
+  var monthPlan = positionPlanQty[monthStr] || {};
+  var workDays = days.filter(function(d){ return !isNonWorkDay(d); });
+  var html = '<table class="dt"><thead><tr><th class="lbl" style="min-width:80px;">직책</th><th class="lbl2" style="min-width:50px;">구분</th>'+dayHeadHtml(days)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
+  allPos.forEach(function(pos){
+    var planVal = +(monthPlan[pos]||0);
+    var planTotal=0, actTotal=0;
+    var planRow='', actRow='';
+    days.forEach(function(d){
+      var cls = dowClass(d) + (holidayNameForDate(d)?' hol':'');
+      var p = isNonWorkDay(d) ? '' : planVal;
+      if(p) planTotal += p;
+      planRow += '<td class="'+cls+'">'+(p||'')+'</td>';
+      var actCount = membersList.filter(function(m){
+        return m.position===pos && attByMemberDate[m.id] && attByMemberDate[m.id][d] && attByMemberDate[m.id][d].checkIn;
+      }).length;
+      if(actCount) actTotal += actCount;
+      actRow += '<td class="'+cls+'">'+(actCount||'')+'</td>';
+    });
+    var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
+    var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
+    html += '<tr><td class="lbl" rowspan="2">'+esc(pos)+'<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(planVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value)" title="직책별 1일 계획인원(M/D)"></td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>';
+    html += '<tr><td class="lbl2">A/F</td>'+actRow+'<td>'+(actTotal||'')+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('posTableWrap').innerHTML = html;
+}
+async function savePositionPlanQty(pos, val){
+  var monthStr = document.getElementById('posMonth').value;
+  if(!positionPlanQty[monthStr]) positionPlanQty[monthStr] = {};
+  positionPlanQty[monthStr][pos] = +val || 0;
+  var res = await sb.from('app_settings').update({position_plan_qty:positionPlanQty}).eq('id','global');
+  if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); return; }
+  showToast('✅ 저장됨','var(--ok)');
+  renderPositionTable(monthStr, monthDays(monthStr));
+}
+
+// ---------- 근로자명단 ----------
+function renderMembersTab(){
+  document.getElementById('memCount').textContent = '총 '+membersList.length+'명';
+  var rows = membersSorted().map(function(m,i){
+    return '<tr><td>'+(i+1)+'</td><td style="text-align:left;">'+esc(m.name)+'</td><td>'+esc(m.position||'')+'</td>'
+      +'<td>'+esc(m.phone||'')+'</td><td>'+esc(m.menu||'')+'</td><td>'+esc(m.cat||'')+'</td>'
+      +'<td>'+esc(m.area||'')+'</td><td>'+esc(m.team||'')+'</td>'
+      +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td>'
+      +'<td><span class="badge '+(m.active===false?'err':'ok')+'">'+(m.active===false?'퇴사':'재직')+'</span></td></tr>';
+  }).join('');
+  document.getElementById('memTableWrap').innerHTML =
+    '<table class="dt"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th><th>근무여부</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ---------- 공휴일 ----------
+function ensureHolidayYearOptions(){
+  var sel=document.getElementById('holYear');
+  var years={};
+  Object.keys(holidaysExtra).forEach(function(y){ years[y]=1; });
+  Object.keys(DEFAULT_HOLIDAYS_EXTRA).forEach(function(y){ years[y]=1; });
+  var curYear = todayStr().slice(0,4);
+  years[curYear]=1; years[+curYear+1]=1;
+  var list = Object.keys(years).sort();
+  var cur = sel.value;
+  sel.innerHTML = list.map(function(y){ return '<option>'+y+'</option>'; }).join('');
+  sel.value = list.indexOf(cur)!==-1 ? cur : curYear;
+}
+function renderHolidayTable(){
+  if(!document.getElementById('holYear').options.length) ensureHolidayYearOptions();
+  var year = document.getElementById('holYear').value;
+  var fixed = fixedHolidaysForYear(year).map(function(h){ return Object.assign({fixed:true},h); });
+  var extra = (holidaysExtra[year] || DEFAULT_HOLIDAYS_EXTRA[year] || []).map(function(h){ return Object.assign({fixed:false},h); });
+  var all = fixed.concat(extra).sort(function(a,b){ return a.date<b.date?-1:1; });
+  var rows = all.map(function(h,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+h.date+'</td><td>'+esc(h.name)+'</td>'
+      +'<td>'+(h.fixed?'<span class="badge ok">자동</span>':'<span class="badge warn">수동</span>')+'</td>'
+      +'<td>'+(h.fixed?'':'<button class="btn sm danger" onclick="deleteHoliday(\''+year+'\',\''+h.date+'\',\''+esc(h.name).replace(/'/g,"\\'")+'\')">삭제</button>')+'</td></tr>';
+  }).join('');
+  document.getElementById('holBody').innerHTML = rows || '<tr><td colspan="5">등록된 공휴일이 없습니다</td></tr>';
+}
+function addCustomHoliday(){
+  var year = document.getElementById('holYear').value;
+  var date = prompt(year+'년 공휴일 날짜를 입력하세요 (예: '+year+'-09-24)', year+'-01-01');
+  if(!date) return;
+  var name = prompt('공휴일 명칭을 입력하세요', '임시공휴일');
+  if(!name) return;
+  if(!holidaysExtra[year]) holidaysExtra[year] = (DEFAULT_HOLIDAYS_EXTRA[year]||[]).slice();
+  holidaysExtra[year].push({date:date, name:name});
+  _holCache={};
+  renderHolidayTable();
+}
+function deleteHoliday(year, date, name){
+  if(!holidaysExtra[year]) holidaysExtra[year] = (DEFAULT_HOLIDAYS_EXTRA[year]||[]).slice();
+  holidaysExtra[year] = holidaysExtra[year].filter(function(h){ return !(h.date===date && h.name===name); });
+  _holCache={};
+  renderHolidayTable();
+}
+async function saveHolidaysExtra(){
+  var res = await sb.from('app_settings').update({holidays_extra:holidaysExtra}).eq('id','global');
+  if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); return; }
+  showToast('✅ 공휴일 저장됨','var(--ok)');
+  loadMonthData();
+}
+
+// ---------- 물량소화계획 ----------
+function networkDaysExclHolidays(startStr, endStr){
+  if(!startStr || !endStr) return 0;
+  var d = new Date(startStr+'T00:00:00'), end=new Date(endStr+'T00:00:00');
+  var cnt=0;
+  while(d<=end){
+    var ds = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    if(!isNonWorkDay(ds)) cnt++;
+    d.setDate(d.getDate()+1);
+  }
+  return cnt;
+}
+function loadMaterialPlan(forceReseed){
+  if(materialPlan && materialPlan.length && !forceReseed){ renderMaterialTable(); return; }
+  var monthStr = document.getElementById('attMonth').value || todayStr().slice(0,7);
+  var days = monthDays(monthStr);
+  var planQty = appSettings.plan_qty || {};
+  materialPlan = DEFAULT_MATERIAL_ITEMS.map(function(it){
+    return {
+      activity:'시공',
+      name: it.name,
+      unit: it.unit,
+      start: days[0],
+      finish: days[days.length-1],
+      qty: planQty[it.name] || 0,
+      perDay: 0,
+      note: ''
+    };
+  });
+  renderMaterialTable();
+  showToast('기본 목록으로 채웠습니다. 저장을 눌러 반영하세요','var(--brand-2)');
+}
+function renderMaterialTable(){
+  if(!materialPlan) materialPlan = [];
+  if(!materialPlan.length){ loadMaterialPlan(); return; }
+  var rows = materialPlan.map(function(r,i){
+    var workDays = networkDaysExclHolidays(r.start, r.finish);
+    var perDayQty = workDays>0 ? (r.qty/workDays) : 0;
+    var manpower = r.perDay>0 ? Math.floor(perDayQty/r.perDay) : 0;
+    var totalManpower = Math.round(workDays*manpower);
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td style="text-align:left;">'+esc(r.name)+'</td>'
+      +'<td><input class="txi" style="width:56px;" value="'+esc(r.unit||'')+'" onchange="updMat('+i+',\'unit\',this.value)"></td>'
+      +'<td><input type="date" class="dtx" value="'+(r.start||'')+'" onchange="updMat('+i+',\'start\',this.value)"></td>'
+      +'<td><input type="date" class="dtx" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
+      +'<td><input type="number" class="qi" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
+      +'<td>'+workDays+'</td>'
+      +'<td>'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
+      +'<td><input type="number" class="qi" value="'+(r.perDay||0)+'" step="0.01" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
+      +'<td>'+manpower+'</td>'
+      +'<td>'+totalManpower+'</td>'
+      +'<td><input class="txi" value="'+esc(r.note||'')+'" onchange="updMat('+i+',\'note\',this.value)"></td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('matBody').innerHTML = rows;
+}
+function updMat(i, field, val){
+  if(field==='qty' || field==='perDay') val = +val || 0;
+  materialPlan[i][field] = val;
+  renderMaterialTable();
+}
+async function saveMaterialPlan(){
+  var res = await sb.from('app_settings').update({material_plan:materialPlan}).eq('id','global');
+  if(res.error){
+    matColumnOk = false;
+    renderMigBanner();
+    showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)');
+    return;
+  }
+  matColumnOk = true;
+  renderMigBanner();
+  showToast('✅ 저장됨','var(--ok)');
+}
+
+init();
+</script>
+</body>
+</html>
