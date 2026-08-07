@@ -77,7 +77,10 @@ table.dt{border-collapse:separate; border-spacing:0; width:100%; font-size:12px;
 table.dt th, table.dt td{border-right:1px solid var(--card-bd); padding:5px 7px; text-align:center;}
 table.dt tbody th, table.dt tbody td{border-top:1px solid var(--card-bd);}   /* 본문 행 구분선(라벨 칸이 th/td 섞여 있어 둘 다 포함) */
 table.dt thead tr:not(:first-child) th{border-top:1px solid var(--card-bd);}   /* 헤더는 첫 행(캡션)만 빼고 위쪽 선 — 캡션/월그룹/날짜 행 사이 구분 */
-table.dt th:last-child, table.dt td:last-child{border-right:none;}   /* 맨 오른쪽 칸은 표 바깥 테두리와 겹치지 않게 생략 */
+/* 2026-08-07: 위처럼 맨 오른쪽 칸 테두리를 생략하고 .tablewrap 바깥 테두리에 맡겼더니, 표 폭이 화면(래퍼)보다
+   좁을 때(열이 적은 주간/월간/인원동원계획 등) 마지막 열 오른쪽에 아무 선도 없이 그냥 빈 공간으로 뜨는
+   문제가 생김(래퍼 테두리는 훨씬 더 오른쪽에 있어서) — 표가 꽉 찼을 때 바깥 테두리와 살짝 겹치는 것보다
+   항상 선이 보이는 게 나아서 되돌림(마지막 열도 다른 열과 똑같이 오른쪽 테두리를 그림). */
 /* .tablewrap이 세로 스크롤 컨테이너라 top:0은 그 박스 맨 위 기준(페이지 top이 아님) — 표 안에서 스크롤할 때 날짜 행이 고정됨.
    2026-08-07: 진한 남색 채움+흰 글씨는 작업일보(work-report-daesun) 쪽 표(.dtable)보다 훨씬 진하다는 지적으로,
    작업일보와 같은 밝은 회청색(--head-bg)+짙은 글자로 톤을 맞춤. */
