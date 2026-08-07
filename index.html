@@ -195,7 +195,7 @@ if(isMobileDevice){
         </tr></thead>
         <tbody id="matBody"></tbody>
       </table></div>
-      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. Start/Finish 기본 구간은 1년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다.</div>
+      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다.</div>
     </div>
   </div>
 </div>
@@ -687,12 +687,13 @@ function networkDaysExclHolidays(startStr, endStr){
   }
   return cnt-1;   // 원본 엑셀 수식 =NETWORKDAYS(시작,종료,공휴일)-1 과 동일하게 맞춤(착공일 1일을 빼는 방식)
 }
-// 선택한 달의 1일부터 11개월 뒤 말일까지, 총 1년치 기본 구간을 계산
-function oneYearRangeFromMonth(monthStr){
+// 선택한 달의 1일부터 (years*12-1)개월 뒤 말일까지, 기본 구간을 계산(기본 2년)
+function defaultPlanRangeFromMonth(monthStr, years){
   var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
   var start = y+'-'+pad(m)+'-01';
-  var em=m+11, ey=y;
-  if(em>12){ em-=12; ey+=1; }
+  var span = (years||2)*12 - 1;
+  var em=m+span, ey=y;
+  while(em>12){ em-=12; ey+=1; }
   var lastDay = new Date(ey, em, 0).getDate();
   var finish = ey+'-'+pad(em)+'-'+pad(lastDay);
   return {start:start, finish:finish};
@@ -700,7 +701,7 @@ function oneYearRangeFromMonth(monthStr){
 function loadMaterialPlan(forceReseed){
   if(materialPlan && materialPlan.length && !forceReseed){ renderMaterialTable(); return; }
   var monthStr = document.getElementById('attMonth').value || todayStr().slice(0,7);
-  var range = oneYearRangeFromMonth(monthStr);   // 기본 기간 1년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
+  var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
   var planQty = appSettings.plan_qty || {};
   materialPlan = DEFAULT_MATERIAL_ITEMS.map(function(it){
     return {
@@ -715,7 +716,7 @@ function loadMaterialPlan(forceReseed){
     };
   });
   renderMaterialTable();
-  showToast('기본 목록으로 채웠습니다(기본 기간 1년). 저장을 눌러 반영하세요','var(--brand-2)');
+  showToast('기본 목록으로 채웠습니다(기본 기간 2년). 저장을 눌러 반영하세요','var(--brand-2)');
 }
 function renderMaterialTable(){
   if(!materialPlan) materialPlan = [];
