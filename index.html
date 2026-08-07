@@ -273,7 +273,7 @@ if(isMobileDevice){
         </tr></thead>
         <tbody id="matBody"></tbody>
       </table></div>
-      <div class="note">계약물량 기본값은 작업일보 앱의 공정률 계획수량(plan_qty)에서 최초 1회 자동으로 가져왔습니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다.</div>
+      <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다. "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
     </div>
   </div>
 
@@ -333,15 +333,24 @@ var DEFAULT_HOLIDAYS_EXTRA={
     {date:'2027-10-05',name:'대체공휴일'}
   ]
 };
-var DEFAULT_MATERIAL_ITEMS=[
-  {name:'PANEL',unit:'LOT'},{name:'CABLE',unit:'M'},{name:'CONNECTION',unit:'POINT'},
-  {name:'DUCT',unit:'M'},{name:'JUNCTION BOX',unit:'EA'},{name:'CONDUIT',unit:'M'},
-  {name:'FLEXIBLE',unit:'EA'},{name:'INSTRUMENT',unit:'EA'},{name:'HOOKUP',unit:'M'},
-  {name:'AIR',unit:'M'},{name:'LINE CHECK',unit:'POINT'},{name:'LEAK TEST',unit:'POINT'},
-  {name:'LOOP TEST',unit:'LOOP'},{name:'SUPPORT',unit:'M'},{name:'OTHER WORK',unit:'EA'},
-  {name:'화기감시자',unit:'MD'},{name:'유도원',unit:'MD'},{name:'신호수',unit:'MD'},{name:'기타',unit:'MD'},
-  {name:'비계설치',unit:'M2'}
-];
+// 물량소화계획의 DESCRIPTION(=작업일보의 "작업분류")은 작업일보 앱(work-report-daesun)이 쓰는 것과 같은
+// Supabase app_settings.cats_by_menu['시공']/item_unit을 그대로 읽어서 항상 동일하게 맞춘다(2026-08-07,
+// 사용자 요청 — "작업일보와 연동"). 아래 두 값은 그 컬럼이 아직 비어있을 때만 쓰는 기본값이고, 작업일보
+// app/index.html의 MENU_CONFIG['시공'].items / ITEM_UNIT 기본값과 정확히 동일하게 맞춰둠.
+var SIKONG_CATS_FALLBACK=['DCS Panel','LCP','Junction Box','Instrument','Cable Duct','Cable Tray','Cable Pulling','Connection','Conduit Pipe','Air Pipe','Hook Up','Support','Stanchion','Steam Tracing','Scaffolding','Line Check','Loop Test','Calibration','Leak Test','Others','관리자','장비작업'];
+var SIKONG_UNIT_FALLBACK={'DCS Panel':'EA','LCP':'EA','Junction Box':'EA','Instrument':'EA','Cable Pulling':'M','Cable Duct':'M','Cable Tray':'M','Conduit Pipe':'M','Air Pipe':'M','Hook Up':'EA','Stanchion':'EA','Support':'EA','Connection':'EA','Line Check':'PT','Loop Test':'PT','Leak Test':'PT','Calibration':'EA','Steam Tracing':'M','Scaffolding':'EA','Others':'EA','관리자':'EA','장비작업':'EA'};
+// 작업일보 index.html의 sikongCatsFrom()과 동일한 규칙(시공 공종 분류만, 순서 유지, 중복 제거)
+function sikongCategories(){
+  var seen={}, list=[];
+  ((appSettings.cats_by_menu||{})['시공'] || SIKONG_CATS_FALLBACK).forEach(function(cat){
+    if(seen[cat]) return; seen[cat]=true; list.push(cat);
+  });
+  return list;
+}
+function sikongUnitOf(cat){
+  var units = appSettings.item_unit || {};
+  return units[cat] || SIKONG_UNIT_FALLBACK[cat] || 'EA';
+}
 
 var appSettings={};
 var holidaysExtra={};
@@ -1136,25 +1145,39 @@ function defaultPlanRangeFromMonth(monthStr, years){
   var finish = ey+'-'+pad(em)+'-'+pad(lastDay);
   return {start:start, finish:finish};
 }
+function newMaterialRow(catName, range, planQty){
+  return {
+    activity:'시공',
+    name: catName,
+    unit: sikongUnitOf(catName),
+    start: range.start,
+    finish: range.finish,
+    qty: planQty[catName] || 0,
+    perDay: 0,
+    note: ''
+  };
+}
 function loadMaterialPlan(forceReseed){
-  if(materialPlan && materialPlan.length && !forceReseed){ renderMaterialTable(); return; }
   var monthStr = (appSettings.report_start_date||'').slice(0,7) || todayStr().slice(0,7);
   var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
   var planQty = appSettings.plan_qty || {};
-  materialPlan = DEFAULT_MATERIAL_ITEMS.map(function(it){
-    return {
-      activity:'시공',
-      name: it.name,
-      unit: it.unit,
-      start: range.start,
-      finish: range.finish,
-      qty: planQty[it.name] || 0,
-      perDay: 0,
-      note: ''
-    };
-  });
+  if(materialPlan && materialPlan.length && !forceReseed){
+    // 작업일보 쪽에서 나중에 작업분류가 새로 추가되면(연동), 이미 입력해둔 기존 행(Start/Finish/계약물량 등)은
+    // 그대로 두고 새 분류만 뒤에 이어붙인다 — 강제로 다시 채우기(forceReseed)와 달리 기존 데이터를 안 건드림.
+    var existing = {}; materialPlan.forEach(function(r){ existing[r.name]=true; });
+    var added = 0;
+    sikongCategories().forEach(function(cat){
+      if(existing[cat]) return;
+      materialPlan.push(newMaterialRow(cat, range, planQty));
+      added++;
+    });
+    if(added) showToast('작업일보에 새로 추가된 작업분류 '+added+'개를 반영했습니다. 저장을 눌러주세요','var(--brand-2)');
+    renderMaterialTable();
+    return;
+  }
+  materialPlan = sikongCategories().map(function(cat){ return newMaterialRow(cat, range, planQty); });
   renderMaterialTable();
-  showToast('기본 목록으로 채웠습니다(기본 기간 2년). 저장을 눌러 반영하세요','var(--brand-2)');
+  showToast('작업일보 작업분류 목록으로 채웠습니다(기본 기간 2년). 저장을 눌러 반영하세요','var(--brand-2)');
 }
 function renderMaterialTable(){
   if(!materialPlan) materialPlan = [];
