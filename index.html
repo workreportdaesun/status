@@ -120,7 +120,10 @@ table.dt.dt-grid th, table.dt.dt-grid td{overflow:hidden; text-overflow:ellipsis
    규칙이 이 셀 자체를 또 다른 스크롤 컨테이너로 만들어버려서 안의 sticky span이 표 전체가 아니라 이 셀(스크롤 안 함) 기준으로
    계산되며 무력화됐음 — 그래서 이 셀들만 overflow:visible로 되돌림. */
 table.dt.dt-grid .sec-row td, table.dt.dt-grid tr.period-cap th{overflow:visible;}
-table.dt .sec-row td{background:var(--brand-2); color:#fff; font-weight:800; text-align:left;}
+/* 간접인원/직접인원 구분줄: 예전엔 브랜드 남색(--brand-2) 바탕에 흰 글자라 표에서 너무 튄다는 지적(2026-08-07)으로,
+   연한 파랑 바탕 + 짙은 남색 글자로 낮춤. 합계줄(.tot-row, #EAF1F8)보다 한 단계 진한 톤이라 둘이 안 헷갈리고,
+   왼쪽 굵은 세로선을 더해 색이 옅어져도 구분줄이라는 게 바로 보이게 함. */
+table.dt .sec-row td{background:#D6E4F3; color:var(--brand-1); font-weight:800; text-align:left; box-shadow:inset 3px 0 0 var(--brand-3);}
 table.dt .sec-row td span.stick{position:sticky; left:8px; display:inline-block;}
 table.dt .tot-row td{background:#EAF1F8; font-weight:800;}
 table.dt .sat{color:var(--sat);}
