@@ -66,15 +66,18 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 .tablewrap.tw-split{display:flex; flex-direction:column; overflow:hidden; max-height:70vh;}
 .tw-head-clip{overflow:hidden; flex:0 0 auto;}
 .tw-body-scroll{overflow-x:scroll; overflow-y:auto; flex:1 1 auto;}
-/* 헤더가 별도 표(.tw-head-clip)라 그 마지막 행의 아래 테두리(1px)와 본문 표(.tw-body-scroll) 첫 행의
-   위 테두리(1px)가 그 경계에서 겹쳐 그 줄만 유독 두꺼워(2px) 보이던 문제 — 본문 쪽 위 테두리를 없애 한 줄만 남김. */
-.tw-body-scroll table.dt tbody tr:first-child>th, .tw-body-scroll table.dt tbody tr:first-child>td{border-top:none;}
 /* border-collapse:collapse는 브라우저가 th/td의 position:sticky를 아예 무시하게 만듦(다른 자매 앱에서 이미
    확인된 문제) — sticky 헤더가 작동하려면 반드시 separate여야 함. */
 table.dt{border-collapse:separate; border-spacing:0; width:100%; font-size:12px; white-space:nowrap;}
-/* 2026-08-07: 구분선이 잘 안 보인다는 지적 — 기존 #E3EAF2는 흰 배경과의 대비가 1.21:1로 작업일보(work-report-daesun)
-   .dtable의 테두리색(--card-bd #D1DCE8, 대비 1.39:1)보다도 옅어서 잘 안 보였음. 같은 --card-bd로 통일. */
-table.dt th, table.dt td{border:1px solid var(--card-bd); padding:5px 7px; text-align:center;}
+/* 2026-08-07: 작업일보(work-report-daesun) .dtable과 굵기가 달라 보인다는 지적 — 원인은 색이 아니라 구조였음.
+   separate 모드(위 이유로 collapse 불가)에서 모든 칸에 4면 테두리를 다 주면, 맞닿은 두 칸이 같은 경계에
+   각자 테두리를 그려서(간격 0이라도 collapse처럼 합쳐지지 않음) 매 칸 경계마다 선이 사실상 2겹으로 겹쳐 항상
+   실제보다 굵게 보였음. .dtable처럼 "경계마다 한쪽 칸만 테두리를 그리는" 방식(오른쪽+위쪽만)으로 바꿔서
+   collapse와 같은 얇기의 단일 선이 되게 함 — 표 바깥 4면은 .tablewrap 자체의 테두리가 대신 그려줌. */
+table.dt th, table.dt td{border-right:1px solid var(--card-bd); padding:5px 7px; text-align:center;}
+table.dt tbody th, table.dt tbody td{border-top:1px solid var(--card-bd);}   /* 본문 행 구분선(라벨 칸이 th/td 섞여 있어 둘 다 포함) */
+table.dt thead tr:not(:first-child) th{border-top:1px solid var(--card-bd);}   /* 헤더는 첫 행(캡션)만 빼고 위쪽 선 — 캡션/월그룹/날짜 행 사이 구분 */
+table.dt th:last-child, table.dt td:last-child{border-right:none;}   /* 맨 오른쪽 칸은 표 바깥 테두리와 겹치지 않게 생략 */
 /* .tablewrap이 세로 스크롤 컨테이너라 top:0은 그 박스 맨 위 기준(페이지 top이 아님) — 표 안에서 스크롤할 때 날짜 행이 고정됨.
    2026-08-07: 진한 남색 채움+흰 글씨는 작업일보(work-report-daesun) 쪽 표(.dtable)보다 훨씬 진하다는 지적으로,
    작업일보와 같은 밝은 회청색(--head-bg)+짙은 글자로 톤을 맞춤. */
