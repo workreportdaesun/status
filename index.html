@@ -473,25 +473,39 @@ function colHeadHtml(cols){
     return '<th class="'+(c.cls||'')+'" title="'+(c.title||'')+'">'+c.label+'</th>';
   }).join('');
 }
-// 열마다 고정폭을 주는 colgroup — 일별/주간/월간 어느 모드든 데이터 열 폭이 항상 같도록(라벨2칸+데이터n칸+꼬리n칸)
-var GRID_LBL1_W=72, GRID_LBL2_W=64, GRID_DATA_W=78, GRID_TAIL_W=60;   // 78px = 주간 라벨 최악의 경우("11/24~11/30" 등 11자)까지 안전하게 담을 수 있는 폭
-function colGroupHtml(dataColCount, trailingCount){
+// 열마다 고정폭을 주는 colgroup — 같은 표 안에서는 데이터 열 폭이 항상 같도록(라벨2칸+데이터n칸+꼬리n칸)
+var GRID_LBL1_W=72, GRID_LBL2_W=64, GRID_TAIL_W=60, GRID_DATA_MIN=32, GRID_DATA_MAX=140;
+function colGroupHtml(dataColCount, trailingCount, dataW){
   var html = '<colgroup><col style="width:'+GRID_LBL1_W+'px"><col style="width:'+GRID_LBL2_W+'px">';
-  for(var i=0;i<dataColCount;i++){ html += '<col style="width:'+GRID_DATA_W+'px">'; }
+  for(var i=0;i<dataColCount;i++){ html += '<col style="width:'+dataW+'px">'; }
   for(var i=0;i<(trailingCount||1);i++){ html += '<col style="width:'+GRID_TAIL_W+'px">'; }
   html += '</colgroup>';
   return html;
 }
 // table-layout:fixed + width:auto가 브라우저에 따라 colgroup 합계가 아닌 부모(100%) 폭으로 계산되는 경우가 있어,
 // 정확한 합계 폭을 직접 계산해 <table style="width:...">에 명시적으로 박아넣어 어떤 경우에도 열 폭이 흔들리지 않게 함.
-function gridTableWidth(dataColCount, trailingCount){
-  return GRID_LBL1_W+GRID_LBL2_W+dataColCount*GRID_DATA_W+(trailingCount||1)*GRID_TAIL_W;
+function gridTableWidth(dataColCount, trailingCount, dataW){
+  return GRID_LBL1_W+GRID_LBL2_W+dataColCount*dataW+(trailingCount||1)*GRID_TAIL_W;
+}
+// 가능하면 스크롤 없이 한 화면에 다 들어오도록 컨테이너 폭에 맞춰 데이터 열 폭을 계산(일별=최대 31칸도 대상).
+// 열이 너무 많아서 최소폭(GRID_DATA_MIN)도 못 채우면 그때는 표가 넘쳐서 자동으로 가로 스크롤이 생김(=부족하면 스크롤).
+function fitDataColWidth(wrapId, dataColCount, trailingCount){
+  var wrap = document.getElementById(wrapId);
+  var container = wrap && wrap.parentElement ? wrap.parentElement : null;
+  var containerWidth = container ? container.clientWidth : 900;
+  var fixedPart = GRID_LBL1_W+GRID_LBL2_W+GRID_TAIL_W*(trailingCount||1);
+  var avail = containerWidth - fixedPart;
+  var w = dataColCount>0 ? Math.floor(avail/dataColCount) : GRID_DATA_MIN;
+  if(w<GRID_DATA_MIN) w=GRID_DATA_MIN;
+  if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
+  return w;
 }
 function sumRowOverCol(getter, col){ return col.days.reduce(function(s,d){ return s+(getter(d)||0); },0); }
 function renderAttendanceTable(cols){
   var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
   var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
-  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1)+'px">'+colGroupHtml(cols.length,1)+'<thead><tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
+  var dataW = fitDataColWidth('attTableWrap', cols.length, 1);
+  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1,dataW)+'px">'+colGroupHtml(cols.length,1,dataW)+'<thead><tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
   if(!cols.length){
     html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
   } else {
@@ -556,14 +570,11 @@ function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ r
 
 // ---------- 공종별 인원투입계획 및 실투입 비교 ----------
 function renderPositionTable(cols){
-  var allPos = MGMT_POSITIONS.concat(FIELD_POSITIONS);
   var editMonthStr = document.getElementById('attMonth').value;   // 계획인원 수정은 일별 모드에서만(단일 달 기준이라 주간/월간 합산 화면에서는 편집 안 함)
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
-  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2)+'px">'+colGroupHtml(cols.length,2)+'<thead><tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
-  if(!cols.length){
-    html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
-  } else {
-  allPos.forEach(function(pos){
+  var dataW = fitDataColWidth('posTableWrap', cols.length, 2);
+  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2,dataW)+'px">'+colGroupHtml(cols.length,2,dataW)+'<thead><tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
+  function posRowHtml(pos){
     var editVal = +(editMonthPlan[pos]||0);
     var planTotal=0, actTotal=0;
     var planRow='', actRow='';
@@ -585,9 +596,16 @@ function renderPositionTable(cols){
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
     var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
     var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
-    html += '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>';
-    html += '<tr><td class="lbl2">A/F</td>'+actRow+'<td>'+(actTotal||'')+'</td></tr>';
-  });
+    return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+      + '<tr><td class="lbl2">A/F</td>'+actRow+'<td>'+(actTotal||'')+'</td></tr>';
+  }
+  if(!cols.length){
+    html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
+  } else {
+    html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'">간접인원</td></tr>';
+    MGMT_POSITIONS.forEach(function(pos){ html += posRowHtml(pos); });
+    html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'">직접인원</td></tr>';
+    FIELD_POSITIONS.forEach(function(pos){ html += posRowHtml(pos); });
   }
   html += '</tbody></table>';
   document.getElementById('posTableWrap').innerHTML = html;
