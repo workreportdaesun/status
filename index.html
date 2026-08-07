@@ -84,7 +84,10 @@ table.dt thead th.sun{color:#FFC9C2;}
    ⚠️ 헤더 행을 2개 이상 동시에 세로 고정(position:sticky)하면 폭/범위·페이지 스크롤 유무와 무관하게
    이 환경(헤드리스 크로미움)에서 재현 가능하게 고정이 아예 안 먹는 버그를 여러 차례(페이지 스크롤 제거
    전/후 포함) 확인함(2026-08-07) — 그래서 날짜 행 하나만 고정 유지. */
-table.dt thead tr.period-cap th, table.dt thead tr.month-group th{position:static; background:var(--brand-2); font-size:13px; letter-spacing:.4px;}
+table.dt thead tr.month-group th{position:static; background:var(--brand-2); font-size:13px; letter-spacing:.4px;}
+/* 캡션 행(기간 텍스트)이 바로 아래 날짜 헤더 행과 같은 짙은 남색이라 스크린샷에서 두 줄이 구분 안 된다는
+   지적(2026-08-07)으로, 캡션 행만 밝은 배경+짙은 글자로 바꿔 날짜 헤더 행(짙은 남색)과 뚜렷이 구분되게 함. */
+table.dt thead tr.period-cap th{position:static; background:var(--field-bg); color:var(--ink); font-size:13px; letter-spacing:.4px;}
 /* text-align:center인 채로 두면 안의 sticky span의 "정지 위치" 계산이 셀 한가운데를 기준으로 틀어져서
    훨씬 많이 스크롤해야 겨우 고정되므로, 캡션만 왼쪽 정렬로 바꿔 sec-row와 동일하게 예측 가능히 동작하게 함. */
 table.dt thead tr.period-cap th{text-align:left;}
