@@ -318,14 +318,14 @@ function mondayFromISOWeekString(weekStr){
   return simple;
 }
 function currentPeriodDays(){ return monthDays(document.getElementById('attMonth').value); }
-// 기준월이 걸치는 주(월~일) 단위 버킷 목록. 각 버킷={days:[...7일],label,cls} — 달의 첫/마지막 주가 앞뒤 달로 며칠 넘어갈 수 있음
-function weekBucketsForMonth(monthStr){
-  var days = monthDays(monthStr);
-  var cur = mondayFromISOWeekString(isoWeekStringFromDate(new Date(days[0]+'T00:00:00')));
-  var lastDate = new Date(days[days.length-1]+'T00:00:00');
+// 기준월부터 2년치 구간의 주(월~일) 단위 버킷 목록. 각 버킷={days:[...7일],label,cls}
+function weekBucketsInRange(startStr, endStr){
+  if(!startStr || !endStr) return [];
+  var cur = mondayFromISOWeekString(isoWeekStringFromDate(new Date(startStr+'T00:00:00')));
+  var endDate = new Date(endStr+'T00:00:00');
   var buckets=[];
   var guard=0;
-  while(cur<=lastDate && guard<10){
+  while(cur<=endDate && guard<200){
     guard++;
     var wdays=[];
     for(var i=0;i<7;i++){ var d=new Date(cur); d.setDate(cur.getDate()+i); wdays.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())); }
@@ -335,10 +335,27 @@ function weekBucketsForMonth(monthStr){
   }
   return buckets;
 }
+// 기준월부터 2년치 구간의 월 단위 버킷 목록. 각 버킷={days:[...그 달의 모든 날짜],label,cls}
+function monthBucketsInRange(startStr, endStr){
+  if(!startStr || !endStr) return [];
+  var y=+startStr.slice(0,4), m=+startStr.slice(5,7);
+  var ey=+endStr.slice(0,4), em=+endStr.slice(5,7);
+  var buckets=[];
+  var guard=0;
+  while((y<ey || (y===ey && m<=em)) && guard<60){
+    guard++;
+    var ms=y+'-'+pad(m);
+    buckets.push({days:monthDays(ms), label:ms, cls:''});
+    m++; if(m>12){ m=1; y++; }
+  }
+  return buckets;
+}
 function buildColumns(){
   var monthStr = document.getElementById('attMonth').value;
-  if(viewMode==='week') return weekBucketsForMonth(monthStr);
-  if(viewMode==='month') return [{days:monthDays(monthStr), label:monthStr, cls:''}];
+  if(viewMode==='week' || viewMode==='month'){
+    var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기준월부터 2년치 구간(물량소화계획 기본 구간 계산과 동일한 함수 재사용)
+    return viewMode==='week' ? weekBucketsInRange(range.start, range.finish) : monthBucketsInRange(range.start, range.finish);
+  }
   return monthDays(monthStr).map(function(d){
     var hn=holidayNameForDate(d);
     return {days:[d], label:(+d.slice(8,10)), cls:dowClass(d)+(hn?' hol':''), title:hn||''};
@@ -505,12 +522,19 @@ var GRID_WEEKMONTH_W=110;   // 주간/월간은 화면에 맞춰 줄이지 않�
 function dataColWidthForMode(wrapId, cols, trailingCount){
   return viewMode==='day' ? fitDataColWidth(wrapId, cols.length, trailingCount) : GRID_WEEKMONTH_W;
 }
-// 표 맨 첫 줄에 넣을 "YYYY년 M월" 캡션(일별/주간/월간 전부 같은 기준월에 종속되므로 그대로 사용)
-function periodCaptionText(){
+// 표 맨 첫 줄에 넣을 캡션 — 일별은 "YYYY년 M월", 주간/월간은 실제 표시되는 2년 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시
+function periodCaptionText(cols){
   var monthStr = document.getElementById('attMonth').value;
   if(!monthStr) return '';
-  var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
-  return y+'년 '+m+'월';
+  if(viewMode==='day' || !cols || !cols.length){
+    var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
+    return y+'년 '+m+'월';
+  }
+  var firstD = cols[0].days[0];
+  var lastCol = cols[cols.length-1];
+  var lastD = lastCol.days[lastCol.days.length-1];
+  var fy=+firstD.slice(0,4), fm=+firstD.slice(5,7), ly=+lastD.slice(0,4), lm=+lastD.slice(5,7);
+  return fy+'년 '+fm+'월 ~ '+ly+'년 '+lm+'월';
 }
 function sumRowOverCol(getter, col){ return col.days.reduce(function(s,d){ return s+(getter(d)||0); },0); }
 function renderAttendanceTable(cols){
@@ -518,7 +542,7 @@ function renderAttendanceTable(cols){
   var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
   var dataW = dataColWidthForMode('attTableWrap', cols, 1);
   var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1,dataW)+'px">'+colGroupHtml(cols.length,1,dataW)
-    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+3)+'">'+periodCaptionText()+'</th></tr>'
+    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+3)+'">'+periodCaptionText(cols)+'</th></tr>'
     +'<tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
   if(!cols.length){
     html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
@@ -588,7 +612,7 @@ function renderPositionTable(cols){
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
   var dataW = dataColWidthForMode('posTableWrap', cols, 2);
   var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2,dataW)+'px">'+colGroupHtml(cols.length,2,dataW)
-    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+4)+'">'+periodCaptionText()+'</th></tr>'
+    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+4)+'">'+periodCaptionText(cols)+'</th></tr>'
     +'<tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
   function posRowHtml(pos){
     var editVal = +(editMonthPlan[pos]||0);
