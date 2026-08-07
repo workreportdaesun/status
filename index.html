@@ -967,7 +967,9 @@ function renderPositionTable(cols, renderCount){
     });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
     var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
-    var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
+    // autocomplete="off": 계획인원 입력칸에 이전에 쳤던 숫자들이 브라우저 자동완성 드롭다운으로 뜨는데, 좁은
+    // 표 칸(overflow:hidden) 안에 있다 보니 그 목록이 테두리선에 가려 다 안 보이던 문제 — 아예 꺼서 없앰(2026-08-07).
+    var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
     return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
       + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
   }
@@ -1019,7 +1021,7 @@ function renderMobilizationTable(){
     var cells = months.map(function(c){
       var monthStr = monthStrOf(c);
       var v = +((positionPlanQty[monthStr]||{})[pos]||0);
-      return '<td><input type="number" class="qi" min="0" value="'+(v||'')+'" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+monthStr+'\')" title="'+monthStr+' '+esc(pos)+' 계획인원(명/일)"></td>';
+      return '<td><input type="number" class="qi" autocomplete="off" min="0" value="'+(v||'')+'" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+monthStr+'\')" title="'+monthStr+' '+esc(pos)+' 계획인원(명/일)"></td>';
     }).join('');
     return '<tr><td class="lbl">'+esc(pos)+'</td>'+cells+'</tr>';
   }
