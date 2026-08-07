@@ -1,6 +1,6 @@
 {
-  "name": "월별출력현황",
-  "short_name": "월별출력",
+  "name": "인원투입계획/실투입",
+  "short_name": "인원투입",
   "start_url": "login.html",
   "display": "standalone",
   "background_color": "#F0F4F8",
