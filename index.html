@@ -16,6 +16,7 @@
   --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#5A7A9A;
   --field-bg:#F7FAFC; --field-bd:#C8D8E8;
   --ok:#27AE60; --err:#E74C3C; --warn:#E67E22;
+  --ok-solid:#1B7A43; --warn-solid:#A05A18; --err-solid:#A6291B;   /* 배지/강조 배경용 진한 톤 — 옅은배경+색글씨 조합이 대비 기준(4.5:1) 미달이라 흰 글씨+진한배경으로 교체 */
   --sat:#2E5F9E; --sun:#C0392B; --hol:#FDEDEC;
   --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --font-mono:"Consolas","D2Coding",monospace;
@@ -31,7 +32,7 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 .tab-bar{display:flex; overflow-x:auto; background:var(--brand-1); position:sticky; top:0; z-index:50; box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .tab-btn{flex:0 0 auto; padding:11px 16px; border:none; background:transparent; color:#B9CBE0; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; font-family:var(--font-body); border-bottom:3px solid transparent;}
 .tab-btn.active{color:#fff; border-bottom-color:#fff; background:rgba(255,255,255,.08);}
-.container{max-width:1400px; margin:0 auto; padding:14px;}
+.container{max-width:100%; padding:14px 20px;}   /* PC 전용 앱이라 화면 좌우를 다 채우도록 폭 제한을 없앰 */
 .tab-panel{display:none;}
 .tab-panel.active{display:block;}
 .card{background:var(--card); border:1px solid var(--card-bd); border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,.05); margin-bottom:14px;}
@@ -51,7 +52,10 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 table.dt{border-collapse:collapse; width:100%; font-size:12px; white-space:nowrap;}
 table.dt th, table.dt td{border:1px solid #E3EAF2; padding:5px 7px; text-align:center;}
 table.dt thead th{background:var(--brand-1); color:#fff; position:sticky; top:0; z-index:5; font-weight:700;}
-table.dt thead tr.period-cap th{position:static; background:var(--brand-3); font-size:13px; letter-spacing:.4px;}
+/* 헤더 셀에 .hol(공휴일 연분홍 배경)이 같이 붙으면 .dt .hol 규칙이 특이도 때문에 이 규칙을 덮어써서
+   흰 글씨가 연분홍 배경 위에 남아 거의 안 보이던 버그 — 배경은 헤더색 그대로 두고 글자색만 눈에 띄게 바꿔서 해결. */
+table.dt thead th.hol{background:var(--brand-1); color:#FFC9C2;}
+table.dt thead tr.period-cap th, table.dt thead tr.month-group th{position:static; background:var(--brand-2); font-size:13px; letter-spacing:.4px;}
 table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
 table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
 table.dt td.lbl2{position:sticky; left:72px; background:var(--field-bg); z-index:3; text-align:left;}
@@ -62,21 +66,21 @@ table.dt td.lbl2{position:sticky; left:72px; background:var(--field-bg); z-index
    셀을 밀어 넓혀서(table-layout:fixed라도) 결국 열 폭이 다시 들쭉날쭉해지므로 강제로 잘라내는 안전장치로 추가함. */
 table.dt.dt-grid{table-layout:fixed; width:auto;}
 table.dt.dt-grid th, table.dt.dt-grid td{overflow:hidden; text-overflow:ellipsis;}
-table.dt .sec-row td{background:var(--brand-3); color:#fff; font-weight:800; text-align:left; position:sticky; left:0; z-index:4;}
+table.dt .sec-row td{background:var(--brand-2); color:#fff; font-weight:800; text-align:left; position:sticky; left:0; z-index:4;}
 table.dt .tot-row td{background:#EAF1F8; font-weight:800;}
 table.dt .sat{color:var(--sat);}
 table.dt .sun{color:var(--sun);}
 table.dt .hol{background:var(--hol);}
 table.dt td.blank{background:repeating-linear-gradient(135deg,#F3F5F8,#F3F5F8 4px,#EAEEF2 4px,#EAEEF2 8px);}
 table.dt td.flag{cursor:pointer; user-select:none; color:var(--brand-2); font-weight:800;}
-table.dt td.flag.on{background:#E8F5EC; color:var(--ok);}
+table.dt td.flag.on{background:var(--ok-solid); color:#fff;}
 table.dt td input.qi{width:56px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:right;}
 table.dt td input.dtx{width:110px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:center;}
 table.dt td input.txi{width:90px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-body); font-size:12px;}
 .badge{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;}
-.badge.ok{background:#E8F5EC; color:var(--ok);}
-.badge.warn{background:#FDF2E3; color:var(--warn);}
-.badge.err{background:#FDEDEC; color:var(--err);}
+.badge.ok{background:var(--ok-solid); color:#fff;}
+.badge.warn{background:var(--warn-solid); color:#fff;}
+.badge.err{background:var(--err-solid); color:#fff;}
 .note{font-size:11px; color:var(--lbl); line-height:1.6; margin-top:8px;}
 .migbox{background:#FDF2E3; border:1px solid #F0C987; border-radius:10px; padding:12px; margin-bottom:14px; font-size:12px; color:#6B4E14;}
 .migbox pre{background:#2B2B2B; color:#F5F5F5; border-radius:8px; padding:10px; overflow-x:auto; font-size:11px; line-height:1.6; margin-top:6px;}
@@ -127,20 +131,20 @@ if(isMobileDevice){
   <!-- 출력일지 -->
   <div class="tab-panel active" id="panel-att">
     <div class="card">
-      <h2>5. 일별 출력일지</h2>
+      <h2>일별 출력일지</h2>
       <div class="toolbar">
         <div class="seg" id="attSeg">
           <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
           <button type="button" class="seg-btn" data-mode="week" onclick="setViewMode('week')">주간</button>
           <button type="button" class="seg-btn" data-mode="month" onclick="setViewMode('month')">월간</button>
         </div>
-        <span id="attMonthWrap"><label>기준월</label> <input type="month" id="attMonth" class="f" onchange="onMonthChange(this.value)"></span>
-        <span id="attRangeLabel" style="font-size:12px; color:var(--lbl);"></span>
+        <label>예상 시작일</label> <input type="date" id="attStartDate" class="f" onchange="onReportRangeInput('start', this.value)">
+        <label>완료일</label> <input type="date" id="attEndDate" class="f" onchange="onReportRangeInput('end', this.value)">
         <span id="attSummary" style="font-size:12px;color:var(--lbl);"></span>
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
       <div class="tablewrap"><div id="attTableWrap">불러오는 중...</div></div>
-      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(일별 모드에서만 수동 입력 가능) · 주간/월간은 항상 위에서 고른 기준월과 같은 기간(그 달이 걸치는 주들 / 그 달 한 행)을 합산해서 보여줍니다(개별 날짜 수정은 일별 모드에서)</div>
+      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(일별 모드에서만 수동 입력 가능) · 일별/주간/월간 모두 위에서 정한 예상 시작일~완료일 기간만 보여줍니다(개별 날짜 수정은 일별 모드에서)</div>
     </div>
   </div>
 
@@ -154,12 +158,12 @@ if(isMobileDevice){
           <button type="button" class="seg-btn" data-mode="week" onclick="setViewMode('week')">주간</button>
           <button type="button" class="seg-btn" data-mode="month" onclick="setViewMode('month')">월간</button>
         </div>
-        <span id="posMonthWrap"><label>기준월</label> <input type="month" id="posMonth" class="f" onchange="onMonthChange(this.value)"></span>
-        <span id="posRangeLabel" style="font-size:12px; color:var(--lbl);"></span>
+        <label>예상 시작일</label> <input type="date" id="posStartDate" class="f" onchange="onReportRangeInput('start', this.value)">
+        <label>완료일</label> <input type="date" id="posEndDate" class="f" onchange="onReportRangeInput('end', this.value)">
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
       <div class="tablewrap"><div id="posTableWrap">불러오는 중...</div></div>
-      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동) · 계획인원 수정은 일별 모드에서만 가능, 주간/월간은 위에서 고른 기준월과 같은 기간을 합산해서 보여주는 조회 전용 화면입니다</div>
+      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동) · 계획인원 수정은 일별 모드에서만 가능, 주간/월간은 위에서 정한 예상 시작일~완료일 기간을 합산해서 보여주는 조회 전용 화면입니다</div>
     </div>
   </div>
 
@@ -191,7 +195,7 @@ if(isMobileDevice){
   <!-- 물량소화계획 -->
   <div class="tab-panel" id="panel-mat">
     <div class="card">
-      <h2>6. 물량 소화 계획</h2>
+      <h2>물량 소화 계획</h2>
       <div class="toolbar">
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
         <button class="btn sm ghost" onclick="loadMaterialPlan(true)">기본목록으로 다시 채우기</button>
@@ -267,6 +271,7 @@ var attByMemberDate={};   // member_id -> date -> {checkIn,overtime}
 var manualByKey={};       // "member_id|date" -> {extra,leave}
 var manualTableOk=true;
 var matColumnOk=true;
+var rangeColumnOk=true;
 
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function pad(n){ return n<10?'0'+n:''+n; }
@@ -283,11 +288,6 @@ function switchTab(name){
   if(name==='hol') renderHolidayTable();
   if(name==='mat') renderMaterialTable();
 }
-function onMonthChange(v){
-  document.getElementById('attMonth').value = v;
-  document.getElementById('posMonth').value = v;
-  loadPeriodData();
-}
 function monthDays(monthStr){
   var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
   var n=new Date(y,m,0).getDate();
@@ -295,9 +295,22 @@ function monthDays(monthStr){
   for(var d=1; d<=n; d++){ arr.push(y+'-'+pad(m)+'-'+pad(d)); }
   return arr;
 }
+function rangeDays(startStr, endStr){
+  var out=[];
+  if(!startStr || !endStr) return out;
+  var d=new Date(startStr+'T00:00:00'), end=new Date(endStr+'T00:00:00');
+  var guard=0;
+  while(d<=end && guard<3000){
+    guard++;
+    out.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
 
 // ---------- 일별/주간/월간 보기 전환 ----------
-// 세 모드 모두 "기준월"(attMonth) 하나에 항상 종속됨 — 일별=그 달의 날짜별 그리드 · 주간=그 달이 걸치는 주들을 합산해서 나열 · 월간=그 달 한 행을 합산해서 보여줌
+// 세 모드 모두 관리자가 정한 "예상 시작일~완료일"(report_start_date/report_end_date) 하나에 항상 종속됨 —
+// 일별=그 기간의 날짜별 그리드 · 주간=그 기간이 걸치는 주들을 합산 · 월간=그 기간이 걸치는 달들을 합산
 // (날짜 계산은 전부 로컬 타임 기준 — Date.UTC를 섞어 쓰면 시간대에 따라 하루씩 어긋날 수 있어 통일함)
 var viewMode='day';        // 'day' | 'week' | 'month'
 function isoWeekStringFromDate(d){
@@ -318,15 +331,14 @@ function mondayFromISOWeekString(weekStr){
   else simple.setDate(simple.getDate()+8-dow);
   return simple;
 }
-function currentPeriodDays(){ return monthDays(document.getElementById('attMonth').value); }
-// 기준월부터 2년치 구간의 주(월~일) 단위 버킷 목록. 각 버킷={days:[...7일],label,cls}
+// 예상 시작일~완료일 구간의 주(월~일) 단위 버킷 목록. 각 버킷={days:[...7일],label,cls}
 function weekBucketsInRange(startStr, endStr){
   if(!startStr || !endStr) return [];
   var cur = mondayFromISOWeekString(isoWeekStringFromDate(new Date(startStr+'T00:00:00')));
   var endDate = new Date(endStr+'T00:00:00');
   var buckets=[];
   var guard=0;
-  while(cur<=endDate && guard<200){
+  while(cur<=endDate && guard<300){
     guard++;
     var wdays=[];
     for(var i=0;i<7;i++){ var d=new Date(cur); d.setDate(cur.getDate()+i); wdays.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())); }
@@ -336,7 +348,7 @@ function weekBucketsInRange(startStr, endStr){
   }
   return buckets;
 }
-// 기준월부터 2년치 구간의 월 단위 버킷 목록. 각 버킷={days:[...그 달의 모든 날짜],label,cls}
+// 예상 시작일~완료일 구간의 월 단위 버킷 목록. 각 버킷={days:[...그 달의 모든 날짜],label,cls}
 function monthBucketsInRange(startStr, endStr){
   if(!startStr || !endStr) return [];
   var y=+startStr.slice(0,4), m=+startStr.slice(5,7);
@@ -351,32 +363,20 @@ function monthBucketsInRange(startStr, endStr){
   }
   return buckets;
 }
-function buildColumns(){
-  var monthStr = document.getElementById('attMonth').value;
-  if(viewMode==='week' || viewMode==='month'){
-    var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기준월부터 2년치 구간(물량소화계획 기본 구간 계산과 동일한 함수 재사용)
-    return viewMode==='week' ? weekBucketsInRange(range.start, range.finish) : monthBucketsInRange(range.start, range.finish);
-  }
-  // 일별은 그 달의 실제 일수(28~31)와 상관없이 항상 31칸을 만들고, 그 달에 없는 날짜(예: 2월 29~31일)는
-  // 빈 칸(days:[])으로만 채워서 표 폭이 달마다 흔들리지 않게 함(날짜 숫자도 넣지 않음).
-  var days = monthDays(monthStr);
-  var out = [];
-  for(var i=0;i<GRID_DAY_MAX_COLS;i++){
-    if(i<days.length){
-      var d = days[i];
-      var hn=holidayNameForDate(d);
-      out.push({days:[d], label:(i+1), cls:dowClass(d)+(hn?' hol':''), title:hn||''});
-    } else {
-      out.push({days:[], label:'', cls:'blank', title:''});
-    }
-  }
-  return out;
+function reportRange(){
+  return {start:appSettings.report_start_date||'', end:appSettings.report_end_date||''};
 }
-function updateRangeLabelUI(cols){
-  var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
-  var txt = allDays.length ? ('조회 범위: '+allDays[0]+' ~ '+allDays[allDays.length-1]) : '';
-  document.getElementById('attRangeLabel').textContent = txt;
-  document.getElementById('posRangeLabel').textContent = txt;
+function buildColumns(){
+  var range = reportRange();
+  if(viewMode==='week') return weekBucketsInRange(range.start, range.end);
+  if(viewMode==='month') return monthBucketsInRange(range.start, range.end);
+  var days = rangeDays(range.start, range.end);
+  var crossMonth = days.length && days[0].slice(0,7)!==days[days.length-1].slice(0,7);
+  return days.map(function(d){
+    var hn=holidayNameForDate(d);
+    var label = crossMonth ? ((+d.slice(5,7))+'/'+(+d.slice(8,10))) : (+d.slice(8,10));
+    return {days:[d], label:label, cls:dowClass(d)+(hn?' hol':''), title:hn||''};
+  });
 }
 function setViewMode(mode){
   viewMode=mode;
@@ -413,12 +413,17 @@ function isNonWorkDay(dateStr){ return isWeekend(dateStr) || !!holidayNameForDat
 // ---------- init ----------
 async function init(){
   document.getElementById('hdrToday').textContent = todayStr();
-  var cur = todayStr().slice(0,7);
-  document.getElementById('attMonth').value = cur;
-  document.getElementById('posMonth').value = cur;
   await loadAppSettings();
+  applyReportRangeToInputs();
   await loadMembers();
   await loadPeriodData();
+}
+function applyReportRangeToInputs(){
+  var range = reportRange();
+  document.getElementById('attStartDate').value = range.start;
+  document.getElementById('attEndDate').value = range.end;
+  document.getElementById('posStartDate').value = range.start;
+  document.getElementById('posEndDate').value = range.end;
 }
 async function loadAppSettings(){
   var res = await sb.from('app_settings').select('*').eq('id','global').single();
@@ -428,6 +433,27 @@ async function loadAppSettings(){
   positionPlanQty = appSettings.position_plan_qty || {};
   materialPlan = Array.isArray(appSettings.material_plan) ? appSettings.material_plan : null;
   if(appSettings.material_plan === undefined) matColumnOk = false;
+  if(appSettings.report_start_date === undefined) rangeColumnOk = false;
+  if(!appSettings.report_start_date || !appSettings.report_end_date){
+    var def = defaultPlanRangeFromMonth(todayStr().slice(0,7), 2);   // 처음 열었을 때 기본값: 이번달~2년 후(관리자가 이후 자유롭게 수정)
+    appSettings.report_start_date = appSettings.report_start_date || def.start;
+    appSettings.report_end_date = appSettings.report_end_date || def.finish;
+  }
+}
+async function onReportRangeInput(which, v){
+  if(which==='start') appSettings.report_start_date = v;
+  else appSettings.report_end_date = v;
+  applyReportRangeToInputs();
+  var res = await sb.from('app_settings').update({report_start_date:appSettings.report_start_date, report_end_date:appSettings.report_end_date}).eq('id','global');
+  if(res.error){
+    rangeColumnOk = false;
+    renderMigBanner();
+    showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)');
+  } else {
+    rangeColumnOk = true;
+    renderMigBanner();
+  }
+  loadPeriodData();
 }
 async function loadMembers(){
   var res = await sb.from('members').select('id,name,position,cat,menu,team,area,phone,active,created_at').order('name');
@@ -460,15 +486,16 @@ async function applyManualRows(start, end){
 }
 async function loadPeriodData(){
   attByMemberDate = {};
-  var monthStr = document.getElementById('attMonth').value;
-  document.getElementById('posMonth').value = monthStr;
-  var cols = buildColumns();                      // 일별/주간/월간 전부 이 기준월에 종속(항상 같은 기간)
+  var cols = buildColumns();                      // 일별/주간/월간 전부 예상 시작일~완료일에 종속(항상 같은 기간)
   var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
-  var start = allDays[0], end = allDays[allDays.length-1];
-  var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
-  if(!res.error) applyReportRows(res.data);
-  await applyManualRows(start, end);
-  updateRangeLabelUI(cols);
+  if(allDays.length){
+    var start = allDays[0], end = allDays[allDays.length-1];
+    var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
+    if(!res.error) applyReportRows(res.data);
+    await applyManualRows(start, end);
+  } else {
+    manualByKey = {};
+  }
   renderMigBanner();
   renderAttendanceTable(cols);
   renderPositionTable(cols);
@@ -481,6 +508,9 @@ function renderMigBanner(){
   }
   if(!matColumnOk){
     msgs.push('<b>app_settings.material_plan</b> 컬럼이 없어 물량소화계획이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_plan jsonb DEFAULT \'[]\'::jsonb;</pre>');
+  }
+  if(!rangeColumnOk){
+    msgs.push('<b>app_settings.report_start_date/report_end_date</b> 컬럼이 없어 예상 시작일/완료일이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS report_start_date date, ADD COLUMN IF NOT EXISTS report_end_date date;</pre>');
   }
   document.getElementById('migBanner').innerHTML = msgs.length ? '<div class="migbox">⚠️ '+msgs.join('<hr style="border:none;border-top:1px solid #F0C987;margin:10px 0;">')+'</div>' : '';
 }
@@ -529,8 +559,6 @@ function fitDataColWidth(wrapId, dataColCount, trailingCount){
   if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
   return w;
 }
-var GRID_DAY_MAX_COLS=31;   // 일별은 한 달 최대 일수 기준으로 폭을 계산 — 실제 그 달의 일수(28~31)로 나누면
-                             // 달마다 폭이 흔들리므로, 항상 이 값 하나로 나눠서 어느 달이든 같은 폭이 나오게 함(그만큼 촘촘해짐)
 // 주간/월간은 화면 폭에 맞춰 줄이지 않고, 실제 라벨("8/3~8/9", "2026-08") 글자가 안 잘리는 최소 폭을 직접 측정해서 씀
 function measureMaxLabelWidth(cols){
   var probe = document.getElementById('_labelProbe');
@@ -548,23 +576,42 @@ function measureMaxLabelWidth(cols){
   return max;
 }
 function dataColWidthForMode(wrapId, cols, trailingCount){
-  if(viewMode==='day') return fitDataColWidth(wrapId, GRID_DAY_MAX_COLS, trailingCount);
+  // 일별은 예상 시작일~완료일 사이 실제 날짜 수(길면 길수록 줄어듦)에 맞춰 화면에 최대한 다 들어오게, 부족하면 스크롤
+  if(viewMode==='day') return fitDataColWidth(wrapId, cols.length, trailingCount);
   var w = measureMaxLabelWidth(cols) + 18;   // 좌우 여백(padding 7px*2)+테두리 조금 여유
   return w<GRID_DATA_MIN ? GRID_DATA_MIN : w;
 }
-// 표 맨 첫 줄에 넣을 캡션 — 일별은 "YYYY년 M월", 주간/월간은 실제 표시되는 2년 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시
+// 표 맨 첫 줄에 넣을 캡션 — 실제 표시되는 시작~끝 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시(한 달 안에 다 들어오면 한 번만)
 function periodCaptionText(cols){
-  var monthStr = document.getElementById('attMonth').value;
-  if(!monthStr) return '';
-  if(viewMode==='day' || !cols || !cols.length){
-    var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
-    return y+'년 '+m+'월';
-  }
+  if(!cols || !cols.length) return '';
   var firstD = cols[0].days[0];
   var lastCol = cols[cols.length-1];
   var lastD = lastCol.days[lastCol.days.length-1];
   var fy=+firstD.slice(0,4), fm=+firstD.slice(5,7), ly=+lastD.slice(0,4), lm=+lastD.slice(5,7);
+  if(fy===ly && fm===lm) return fy+'년 '+fm+'월';
   return fy+'년 '+fm+'월 ~ '+ly+'년 '+lm+'월';
+}
+// 일별/주간 열들이 실제로 두 달 이상에 걸쳐 있을 때만 월별 구분 행이 의미가 있음(한 달 안에 다 들어오면 캡션과 중복이라 생략)
+function colsSpanMultipleMonths(cols){
+  if(!cols || cols.length<2) return false;
+  var firstCol = cols[0], lastCol = cols[cols.length-1];
+  var firstYM = firstCol.days.length ? firstCol.days[0].slice(0,7) : '';
+  var lastYM = lastCol.days.length ? lastCol.days[lastCol.days.length-1].slice(0,7) : '';
+  return !!firstYM && !!lastYM && firstYM!==lastYM;
+}
+// 주간/일별 열들을 그 열이 속한 연-월 기준으로 묶어서 "YYYY년 M월" 그룹 헤더 행을 만듦(colspan)
+function monthGroupRowHtml(cols, leadColCount, trailingCount){
+  var groups=[];
+  cols.forEach(function(c){
+    var ym = c.days.length ? c.days[0].slice(0,7) : '';
+    if(groups.length && groups[groups.length-1].ym===ym) groups[groups.length-1].span++;
+    else groups.push({ym:ym, span:1});
+  });
+  var cells = groups.map(function(g){
+    var label = g.ym ? ((+g.ym.slice(0,4))+'년 '+(+g.ym.slice(5,7))+'월') : '';
+    return '<th colspan="'+g.span+'">'+label+'</th>';
+  }).join('');
+  return '<tr class="month-group"><th colspan="'+leadColCount+'"></th>'+cells+'<th colspan="'+(trailingCount||1)+'"></th></tr>';
 }
 function sumRowOverCol(getter, col){ return col.days.reduce(function(s,d){ return s+(getter(d)||0); },0); }
 function renderAttendanceTable(cols){
@@ -573,6 +620,7 @@ function renderAttendanceTable(cols){
   var dataW = dataColWidthForMode('attTableWrap', cols, 1);
   var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1,dataW)+'px">'+colGroupHtml(cols.length,1,dataW)
     +'<thead><tr class="period-cap"><th colspan="'+(cols.length+3)+'">'+periodCaptionText(cols)+'</th></tr>'
+    +(((viewMode==='week'||viewMode==='day')&&colsSpanMultipleMonths(cols)) ? monthGroupRowHtml(cols,2,1) : '')
     +'<tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
   if(!cols.length){
     html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
@@ -638,11 +686,12 @@ function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ r
 
 // ---------- 공종별 인원투입계획 및 실투입 비교 ----------
 function renderPositionTable(cols){
-  var editMonthStr = document.getElementById('attMonth').value;   // 계획인원 수정은 일별 모드에서만(단일 달 기준이라 주간/월간 합산 화면에서는 편집 안 함)
+  var editMonthStr = (appSettings.report_start_date||'').slice(0,7);   // 계획인원 수정은 일별 모드에서만, 예상 시작일이 속한 달 기준(주간/월간 합산 화면에서는 편집 안 함)
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
   var dataW = dataColWidthForMode('posTableWrap', cols, 2);
   var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2,dataW)+'px">'+colGroupHtml(cols.length,2,dataW)
     +'<thead><tr class="period-cap"><th colspan="'+(cols.length+4)+'">'+periodCaptionText(cols)+'</th></tr>'
+    +(((viewMode==='week'||viewMode==='day')&&colsSpanMultipleMonths(cols)) ? monthGroupRowHtml(cols,2,2) : '')
     +'<tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
   function posRowHtml(pos){
     var editVal = +(editMonthPlan[pos]||0);
@@ -778,7 +827,7 @@ function defaultPlanRangeFromMonth(monthStr, years){
 }
 function loadMaterialPlan(forceReseed){
   if(materialPlan && materialPlan.length && !forceReseed){ renderMaterialTable(); return; }
-  var monthStr = document.getElementById('attMonth').value || todayStr().slice(0,7);
+  var monthStr = (appSettings.report_start_date||'').slice(0,7) || todayStr().slice(0,7);
   var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
   var planQty = appSettings.plan_qty || {};
   materialPlan = DEFAULT_MATERIAL_ITEMS.map(function(it){
