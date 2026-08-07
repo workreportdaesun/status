@@ -67,6 +67,7 @@ table.dt .tot-row td{background:#EAF1F8; font-weight:800;}
 table.dt .sat{color:var(--sat);}
 table.dt .sun{color:var(--sun);}
 table.dt .hol{background:var(--hol);}
+table.dt td.blank{background:repeating-linear-gradient(135deg,#F3F5F8,#F3F5F8 4px,#EAEEF2 4px,#EAEEF2 8px);}
 table.dt td.flag{cursor:pointer; user-select:none; color:var(--brand-2); font-weight:800;}
 table.dt td.flag.on{background:#E8F5EC; color:var(--ok);}
 table.dt td input.qi{width:56px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:right;}
@@ -356,10 +357,20 @@ function buildColumns(){
     var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기준월부터 2년치 구간(물량소화계획 기본 구간 계산과 동일한 함수 재사용)
     return viewMode==='week' ? weekBucketsInRange(range.start, range.finish) : monthBucketsInRange(range.start, range.finish);
   }
-  return monthDays(monthStr).map(function(d){
-    var hn=holidayNameForDate(d);
-    return {days:[d], label:(+d.slice(8,10)), cls:dowClass(d)+(hn?' hol':''), title:hn||''};
-  });
+  // 일별은 그 달의 실제 일수(28~31)와 상관없이 항상 31칸을 만들고, 그 달에 없는 날짜(예: 2월 29~31일)는
+  // 빈 칸(days:[])으로만 채워서 표 폭이 달마다 흔들리지 않게 함(날짜 숫자도 넣지 않음).
+  var days = monthDays(monthStr);
+  var out = [];
+  for(var i=0;i<GRID_DAY_MAX_COLS;i++){
+    if(i<days.length){
+      var d = days[i];
+      var hn=holidayNameForDate(d);
+      out.push({days:[d], label:(i+1), cls:dowClass(d)+(hn?' hol':''), title:hn||''});
+    } else {
+      out.push({days:[], label:'', cls:'blank', title:''});
+    }
+  }
+  return out;
 }
 function updateRangeLabelUI(cols){
   var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
@@ -505,7 +516,7 @@ function colGroupHtml(dataColCount, trailingCount, dataW){
 function gridTableWidth(dataColCount, trailingCount, dataW){
   return GRID_LBL1_W+GRID_LBL2_W+dataColCount*dataW+(trailingCount||1)*GRID_TAIL_W;
 }
-// 가능하면 스크롤 없이 한 화면에 다 들어오도록 컨테이너 폭에 맞춰 데이터 열 폭을 계산(일별=최대 31칸도 대상).
+// 가능하면 스크롤 없이 한 화면에 다 들어오도록 컨테이너 폭에 맞춰 데이터 열 폭을 계산.
 // 열이 너무 많아서 최소폭(GRID_DATA_MIN)도 못 채우면 그때는 표가 넘쳐서 자동으로 가로 스크롤이 생김(=부족하면 스크롤).
 function fitDataColWidth(wrapId, dataColCount, trailingCount){
   var wrap = document.getElementById(wrapId);
@@ -518,9 +529,10 @@ function fitDataColWidth(wrapId, dataColCount, trailingCount){
   if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
   return w;
 }
-var GRID_WEEKMONTH_W=110;   // 주간/월간은 화면에 맞춰 줄이지 않고 내용이 다 보이는 고정폭으로 표시, 넘치면 가로 스크롤
+var GRID_DAY_MAX_COLS=31;   // 한 달 최대 일수 기준으로 폭을 계산 — 실제 그 달의 일수(28~31)나 주간/월간 열 개수로 나누면
+                             // 달마다·모드마다 폭이 흔들리므로, 항상 이 값 하나로 나눠서 어디서든 같은 폭이 나오게 함(그만큼 줄어서 최대한 촘촘해짐)
 function dataColWidthForMode(wrapId, cols, trailingCount){
-  return viewMode==='day' ? fitDataColWidth(wrapId, cols.length, trailingCount) : GRID_WEEKMONTH_W;
+  return fitDataColWidth(wrapId, GRID_DAY_MAX_COLS, trailingCount);
 }
 // 표 맨 첫 줄에 넣을 캡션 — 일별은 "YYYY년 M월", 주간/월간은 실제 표시되는 2년 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시
 function periodCaptionText(cols){
