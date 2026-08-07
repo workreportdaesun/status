@@ -51,6 +51,7 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 table.dt{border-collapse:collapse; width:100%; font-size:12px; white-space:nowrap;}
 table.dt th, table.dt td{border:1px solid #E3EAF2; padding:5px 7px; text-align:center;}
 table.dt thead th{background:var(--brand-1); color:#fff; position:sticky; top:0; z-index:5; font-weight:700;}
+table.dt thead tr.period-cap th{position:static; background:var(--brand-3); font-size:13px; letter-spacing:.4px;}
 table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
 table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
 table.dt td.lbl2{position:sticky; left:72px; background:var(--field-bg); z-index:3; text-align:left;}
@@ -500,12 +501,25 @@ function fitDataColWidth(wrapId, dataColCount, trailingCount){
   if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
   return w;
 }
+var GRID_WEEKMONTH_W=110;   // 주간/월간은 화면에 맞춰 줄이지 않고 내용이 다 보이는 고정폭으로 표시, 넘치면 가로 스크롤
+function dataColWidthForMode(wrapId, cols, trailingCount){
+  return viewMode==='day' ? fitDataColWidth(wrapId, cols.length, trailingCount) : GRID_WEEKMONTH_W;
+}
+// 표 맨 첫 줄에 넣을 "YYYY년 M월" 캡션(일별/주간/월간 전부 같은 기준월에 종속되므로 그대로 사용)
+function periodCaptionText(){
+  var monthStr = document.getElementById('attMonth').value;
+  if(!monthStr) return '';
+  var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
+  return y+'년 '+m+'월';
+}
 function sumRowOverCol(getter, col){ return col.days.reduce(function(s,d){ return s+(getter(d)||0); },0); }
 function renderAttendanceTable(cols){
   var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
   var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
-  var dataW = fitDataColWidth('attTableWrap', cols.length, 1);
-  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1,dataW)+'px">'+colGroupHtml(cols.length,1,dataW)+'<thead><tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
+  var dataW = dataColWidthForMode('attTableWrap', cols, 1);
+  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,1,dataW)+'px">'+colGroupHtml(cols.length,1,dataW)
+    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+3)+'">'+periodCaptionText()+'</th></tr>'
+    +'<tr><th class="lbl">이름</th><th class="lbl2">직책/구분</th>'+colHeadHtml(cols)+'<th>합계</th></tr></thead><tbody>';
   if(!cols.length){
     html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
   } else {
@@ -572,8 +586,10 @@ function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ r
 function renderPositionTable(cols){
   var editMonthStr = document.getElementById('attMonth').value;   // 계획인원 수정은 일별 모드에서만(단일 달 기준이라 주간/월간 합산 화면에서는 편집 안 함)
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
-  var dataW = fitDataColWidth('posTableWrap', cols.length, 2);
-  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2,dataW)+'px">'+colGroupHtml(cols.length,2,dataW)+'<thead><tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
+  var dataW = dataColWidthForMode('posTableWrap', cols, 2);
+  var html = '<table class="dt dt-grid" style="width:'+gridTableWidth(cols.length,2,dataW)+'px">'+colGroupHtml(cols.length,2,dataW)
+    +'<thead><tr class="period-cap"><th colspan="'+(cols.length+4)+'">'+periodCaptionText()+'</th></tr>'
+    +'<tr><th class="lbl">직책</th><th class="lbl2">구분</th>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead><tbody>';
   function posRowHtml(pos){
     var editVal = +(editMonthPlan[pos]||0);
     var planTotal=0, actTotal=0;
