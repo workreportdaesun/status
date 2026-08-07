@@ -529,10 +529,28 @@ function fitDataColWidth(wrapId, dataColCount, trailingCount){
   if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
   return w;
 }
-var GRID_DAY_MAX_COLS=31;   // 한 달 최대 일수 기준으로 폭을 계산 — 실제 그 달의 일수(28~31)나 주간/월간 열 개수로 나누면
-                             // 달마다·모드마다 폭이 흔들리므로, 항상 이 값 하나로 나눠서 어디서든 같은 폭이 나오게 함(그만큼 줄어서 최대한 촘촘해짐)
+var GRID_DAY_MAX_COLS=31;   // 일별은 한 달 최대 일수 기준으로 폭을 계산 — 실제 그 달의 일수(28~31)로 나누면
+                             // 달마다 폭이 흔들리므로, 항상 이 값 하나로 나눠서 어느 달이든 같은 폭이 나오게 함(그만큼 촘촘해짐)
+// 주간/월간은 화면 폭에 맞춰 줄이지 않고, 실제 라벨("8/3~8/9", "2026-08") 글자가 안 잘리는 최소 폭을 직접 측정해서 씀
+function measureMaxLabelWidth(cols){
+  var probe = document.getElementById('_labelProbe');
+  if(!probe){
+    probe = document.createElement('span');
+    probe.id = '_labelProbe';
+    probe.style.cssText = 'position:absolute; visibility:hidden; white-space:nowrap; left:-9999px; top:-9999px; font-size:12px; font-weight:700; font-family:'+getComputedStyle(document.body).fontFamily+';';
+    document.body.appendChild(probe);
+  }
+  var max = 0;
+  cols.forEach(function(c){
+    probe.textContent = c.label || '';
+    if(probe.offsetWidth > max) max = probe.offsetWidth;
+  });
+  return max;
+}
 function dataColWidthForMode(wrapId, cols, trailingCount){
-  return fitDataColWidth(wrapId, GRID_DAY_MAX_COLS, trailingCount);
+  if(viewMode==='day') return fitDataColWidth(wrapId, GRID_DAY_MAX_COLS, trailingCount);
+  var w = measureMaxLabelWidth(cols) + 18;   // 좌우 여백(padding 7px*2)+테두리 조금 여유
+  return w<GRID_DATA_MIN ? GRID_DATA_MIN : w;
 }
 // 표 맨 첫 줄에 넣을 캡션 — 일별은 "YYYY년 M월", 주간/월간은 실제 표시되는 2년 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시
 function periodCaptionText(cols){
