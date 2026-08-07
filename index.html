@@ -209,7 +209,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="attTableHead"></div></div>
         <div class="tw-body-scroll"><div id="attTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 추가/주월차=관리자가 셀을 눌러 직접 표시(일별 모드에서만 수동 입력 가능) · 일별/주간/월간 모두 위에서 정한 예상 시작일~완료일 기간만 보여줍니다(개별 날짜 수정은 일별 모드에서)</div>
+      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 주/월차=자동 계산(주차: 그 주 근무일에 하루도 안 빠지면 1, 그 주 마지막 근무일에 표시 / 월차: 그 달 근무일에 하루도 안 빠지면 1, 그 달 마지막 근무일에 표시 — 공휴일은 근무일에서 제외) · 추가=관리자가 셀을 눌러 직접 표시(주/월차도 예외 케이스는 셀을 눌러 더할 수 있고, 수동 입력은 일별 모드에서만) · 일별/주간/월간 모두 위에서 정한 예상 시작일~완료일 기간만 보여줍니다</div>
     </div>
   </div>
 
@@ -231,7 +231,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="posTableHead"></div></div>
         <div class="tw-body-scroll"><div id="posTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출퇴근 체크 데이터에서 그 직책으로 등록된 인원이 실제 출근한 일수를 집계(출력일지 합계와 연동) · 계획인원 수정은 일별 모드에서만 가능, 주간/월간은 위에서 정한 예상 시작일~완료일 기간을 합산해서 보여주는 조회 전용 화면입니다</div>
+      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=근로자 명단에 그 직책으로 등록된 인원의 출력일지 합계(기본+연장+추가+주월차)를 집계 · 계획인원 수정은 일별 모드에서만 가능, 주간/월간은 위에서 정한 예상 시작일~완료일 기간을 합산해서 보여주는 조회 전용 화면입니다</div>
     </div>
   </div>
 
@@ -362,6 +362,7 @@ var materialPlan=[];
 var membersList=[];
 var attByMemberDate={};   // member_id -> date -> {checkIn,overtime}
 var manualByKey={};       // "member_id|date" -> {extra,leave}
+var autoLeaveByMember={}; // member_id -> date -> 그 날짜에 자동 발생한 주차+월차 개수(buildAutoLeave)
 var manualTableOk=true;
 var matColumnOk=true;
 var rangeColumnOk=true;
@@ -667,6 +668,7 @@ async function loadPeriodData(){
   } else {
     manualByKey = {};
   }
+  autoLeaveByMember = buildAutoLeave();   // 출근 기록·공휴일·기간이 모두 확정된 뒤라야 주/월차를 판정할 수 있음
   fetchedRangeKey = range.start+'|'+range.end;
   attRenderCount = 0; posRenderCount = 0;   // 새로 받아온 데이터로 다시 그리는 것이므로 가상 스크롤도 처음부터
   renderMigBanner();
@@ -857,9 +859,10 @@ function renderAttendanceTable(cols, renderCount){
   document.getElementById('attTableWrap').innerHTML = bodyHtml;
   bindHeaderSync(document.getElementById('attTableWrap'), 'att');
   var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
+  // 표의 사람별 "합계" 행과 같은 정의(기본+연장+추가+주월차)로 더함 — 기본 출근만 세던 시절엔 이 숫자가
+  // 표 합계나 공종별 A/F 합계와 달라 어느 쪽이 맞는지 헷갈렸음.
   var totalMD = mgmt.concat(field).reduce(function(s,m){
-    var rec = attByMemberDate[m.id]||{};
-    return s + allDays.filter(function(d){ return rec[d] && rec[d].checkIn; }).length;
+    return s + allDays.reduce(function(t,d){ return t + mdOnDay(m.id, d); },0);
   },0);
   var periodLabel = viewMode==='day' ? '이번달' : (viewMode==='week' ? '이번달(주간)' : '이번달(월간)');
   document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · '+periodLabel+' 총 출력 '+totalMD+'MD';
@@ -872,8 +875,10 @@ function memberBlockHtml(m, cols, visCols, hiddenBody){
   var rows = [
     {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:true},
     {key:'연장', get:function(d){ return rec[d] && rec[d].overtime ? 1:0; }, auto:true},
-    {key:'추가', get:function(d){ var mk=manualByKey[m.id+'|'+d]; return mk ? (mk.extra||0) : 0; }, auto:false, field:'extra'},
-    {key:'주/월차', get:function(d){ var mk=manualByKey[m.id+'|'+d]; return mk ? (mk.leave||0) : 0; }, auto:false, field:'leave'}
+    {key:'추가', get:function(d){ return manualOn(m.id, d, 'extra'); }, auto:false, field:'extra'},
+    // 주/월차는 자동 계산값(buildAutoLeave)에 관리자가 손으로 눌러 넣은 값을 더해서 보여줌 — 자동으로 안 잡히는
+    // 예외 케이스를 셀 클릭으로 계속 보정할 수 있게 남겨둔 것이라 자동 1 + 수동 1이면 2로 표시됨.
+    {key:'주/월차', get:function(d){ return manualOn(m.id, d, 'leave') + autoLeaveOn(m.id, d); }, auto:false, field:'leave'}
   ];
   var html='';
   rows.forEach(function(r,i){
@@ -909,25 +914,86 @@ async function toggleManual(memberId, dateStr, field){
   var cur = manualByKey[key] || {member_id:memberId, date:dateStr, extra:0, leave:0};
   cur[field] = cur[field] ? 0 : 1;
   manualByKey[key] = cur;
-  renderAttendanceTable(buildColumns(), attRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
+  var cols = buildColumns();
+  renderAttendanceTable(cols, attRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
+  renderPositionTable(cols, posRenderCount);     // 추가/주월차도 A/F에 들어가므로 공종별 표도 같이 갱신해야 함
   var res = await sb.from('attendance_manual').upsert({member_id:memberId, date:dateStr, extra:cur.extra||0, leave:cur.leave||0}, {onConflict:'member_id,date'});
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); }
 }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
+// ---------- 주/월차 자동 계산 ----------
+// 주차 = 그 주의 근무일(월~금에서 공휴일 제외)에 하루도 빠짐없이 출근하면 1개, 그 주 마지막 근무일 칸에 표시.
+// 월차 = 그 달의 근무일에 하루도 빠짐없이 출근하면 1개, 그 달 마지막 근무일 칸에 표시.
+// 판정 대상 날짜를 "예상 시작일~완료일" 안으로 한정하는 이유: 기간 밖 날짜는 daily_reports를 아예 안 받아오므로
+// 그대로 계산에 넣으면 데이터 없음이 결근으로 오인돼 첫 주/마지막 주의 주차가 항상 0으로 깎임.
+// 그래서 기간에 걸쳐 잘린 주/달은 "기간 안에 들어온 근무일만" 다 채우면 1개로 인정함.
+function workDayGroups(keyOf){
+  var range = reportRange();
+  var g = {}, order = [];
+  rangeDays(range.start, range.end).forEach(function(d){
+    if(isNonWorkDay(d)) return;
+    var k = keyOf(d);
+    if(!g[k]){ g[k] = []; order.push(k); }
+    g[k].push(d);
+  });
+  return order.map(function(k){ return g[k]; });
+}
+function buildAutoLeave(){
+  var groups = workDayGroups(function(d){ return isoWeekStringFromDate(new Date(d+'T00:00:00')); })   // 주차
+    .concat(workDayGroups(function(d){ return d.slice(0,7); }));                                      // 월차
+  var out = {};
+  membersList.forEach(function(mem){
+    var rec = attByMemberDate[mem.id] || {};
+    groups.forEach(function(days){
+      if(!days.length) return;
+      var full = days.every(function(d){ return rec[d] && rec[d].checkIn; });
+      if(!full) return;
+      var last = days[days.length-1];   // rangeDays가 날짜 오름차순이라 배열 끝이 그 주/달의 마지막 근무일
+      if(!out[mem.id]) out[mem.id] = {};
+      out[mem.id][last] = (out[mem.id][last]||0) + 1;   // 달의 마지막 근무일엔 주차와 월차가 같이 떨어져 2가 될 수 있음
+    });
+  });
+  return out;
+}
+function autoLeaveOn(memberId, dateStr){
+  var r = autoLeaveByMember[memberId];
+  return r ? (r[dateStr]||0) : 0;
+}
+function manualOn(memberId, dateStr, field){
+  var mk = manualByKey[memberId+'|'+dateStr];
+  return mk ? (+mk[field]||0) : 0;
+}
+// 출력일지 한 사람의 하루 합계(기본+연장+추가+주월차)이자 공종별 인원투입 A/F의 1일치 값 — 두 화면이
+// 같은 정의를 쓰도록 여기 한 군데로 모음(예전엔 A/F가 기본 출근만 세서 출력일지 합계와 안 맞았음).
+function mdOnDay(memberId, dateStr){
+  var rec = attByMemberDate[memberId];
+  var r = rec ? rec[dateStr] : null;
+  return (r && r.checkIn ? 1:0) + (r && r.overtime ? 1:0)
+    + manualOn(memberId, dateStr, 'extra')
+    + manualOn(memberId, dateStr, 'leave') + autoLeaveOn(memberId, dateStr);
+}
+
 // ---------- 공종별 인원투입계획 및 실투입 비교 ----------
-// 날짜별×직책별 실제 출력 인원수를 미리 한 번 집계해둠 — 이게 없으면 아래 actCount 계산이 "열마다 매번 전체
+// 날짜별×직책별 실제 출력 MD를 미리 한 번 집계해둠 — 이게 없으면 아래 actCount 계산이 "열마다 매번 전체
 // membersList를 훑는" 구조라 기간이 길어질수록(특히 일별 모드) 느려짐(2026-08-07, 성능 개선).
+// 세 출처(출근/연장 기록, 수동입력, 자동 주월차) 중 어느 하나라도 값이 있는 날은 다 훑어야 하므로
+// 사람별로 "값이 있을 수 있는 날짜" 집합을 먼저 만든 뒤 mdOnDay로 한 번에 더함.
 function buildPositionDayCounts(){
+  var datesByMember = {};
+  function mark(id, d){ (datesByMember[id] = datesByMember[id] || {})[d] = 1; }
+  Object.keys(attByMemberDate).forEach(function(id){ Object.keys(attByMemberDate[id]).forEach(function(d){ mark(id,d); }); });
+  Object.keys(autoLeaveByMember).forEach(function(id){ Object.keys(autoLeaveByMember[id]).forEach(function(d){ mark(id,d); }); });
+  Object.keys(manualByKey).forEach(function(k){ var i=k.indexOf('|'); mark(k.slice(0,i), k.slice(i+1)); });
   var m={};
   membersList.forEach(function(mem){
-    var rec = attByMemberDate[mem.id];
-    if(!rec) return;
-    Object.keys(rec).forEach(function(d){
-      if(rec[d] && rec[d].checkIn){
-        if(!m[d]) m[d]={};
-        m[d][mem.position] = (m[d][mem.position]||0)+1;
-      }
+    var dates = datesByMember[mem.id];
+    if(!dates) return;
+    Object.keys(dates).forEach(function(d){
+      var v = mdOnDay(mem.id, d);
+      if(!v) return;
+      if(!m[d]) m[d]={};
+      m[d][mem.position] = (m[d][mem.position]||0) + v;
     });
   });
   return m;
