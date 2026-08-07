@@ -119,6 +119,9 @@ table.dt .sat{color:var(--sat);}
 table.dt .sun{color:var(--sun);}
 table.dt .hol{background:var(--hol);}
 table.dt td.blank{background:repeating-linear-gradient(135deg,#F3F5F8,#F3F5F8 4px,#EAEEF2 4px,#EAEEF2 8px);}
+/* 일별 모드에서 기간이 길 때 아직 안 그린(가상 스크롤 대기 중인) 뒤쪽 열 자리 표시 — 실제 데이터 칸(.blank)과
+   헷갈리지 않게 다른 사선 패턴+연한 라벨색을 씀, 가로로 스크롤해서 다가오면 실제 칸으로 바뀜. */
+table.dt td.vlazy, table.dt th.vlazy{background:repeating-linear-gradient(135deg,#F7FAFC,#F7FAFC 6px,#EEF3F8 6px,#EEF3F8 12px); color:var(--lbl); font-size:11px; font-weight:500; text-align:center;}
 table.dt td.flag{cursor:pointer; user-select:none; color:var(--brand-2); font-weight:800;}
 table.dt td.flag.on{background:var(--ok-solid); color:#fff;}
 table.dt td input.qi{width:56px; border:1px solid var(--field-bd); border-radius:5px; padding:3px; font-family:var(--font-mono); font-size:12px; text-align:right;}
@@ -325,6 +328,12 @@ var manualByKey={};       // "member_id|date" -> {extra,leave}
 var manualTableOk=true;
 var matColumnOk=true;
 var rangeColumnOk=true;
+var fetchedRangeKey=null;   // 마지막으로 서버에서 받아온 예상 시작일|완료일 — 모드(일별/주간/월간)만 바뀌고 이 기간이 그대로면 재조회 생략
+// 일별 모드에서 기간이 길면(예: 몇 년) 열이 수백~수천 개가 되는데, 그만큼 <td>를 한 번에 다 그리면(특히 인원이 많을 때
+// 셀 수가 수십만 개까지 늘어남) 초기 렌더링이 몇 초씩 걸리고 이후에도 버벅임 — 처음엔 일부만 그리고, 가로 스크롤로
+// 끝에 가까워지면 그만큼만 더 그려 넣는 방식(가상 스크롤)으로 실제 DOM 크기를 항상 작게 유지함(2026-08-07).
+var VIRT_THRESHOLD=120, VIRT_CHUNK=150, VIRT_LOOKAHEAD_PX=1600;
+var attRenderCount=0, posRenderCount=0;
 
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function pad(n){ return n<10?'0'+n:''+n; }
@@ -345,7 +354,7 @@ function switchTab(name){
 // 출력일지/공종별 인원투입 전용 — 본문(.tw-body-scroll)을 가로로 스크롤하면 그 스크롤량을 고정 헤더(.tw-head-clip)에도
 // 그대로 복사해서 두 표의 열이 항상 맞물리게 함(리스너는 한 번만 등록 — 표 내용은 매번 새로 그려져도 감싸는 스크롤
 // 요소 자체는 그대로라 재바인딩할 필요 없음).
-function bindHeaderSync(tableWrapEl){
+function bindHeaderSync(tableWrapEl, kind){
   var bodyScroll = tableWrapEl.closest('.tw-body-scroll');
   if(!bodyScroll || bodyScroll._headerSyncBound) return;
   bodyScroll._headerSyncBound = true;
@@ -353,7 +362,26 @@ function bindHeaderSync(tableWrapEl){
   if(!headClip) return;
   bodyScroll.addEventListener('scroll', function(){
     headClip.scrollLeft = bodyScroll.scrollLeft;
+    if(kind) maybeGrowVirtualTable(kind, bodyScroll);
   });
+}
+// 가상 스크롤(위 VIRT_* 주석 참고) — 지금 그려진 열의 오른쪽 끝에서 VIRT_LOOKAHEAD_PX 안쪽까지 스크롤이
+// 다가오면, 그 시점에만 다음 덩어리(VIRT_CHUNK)를 더 그려 넣음. cols.forEach로 정렬된 순서를 그대로 이어
+// 붙이는 구조라 앞부분을 다시 지울 필요가 없어 스크롤 위치도 흔들리지 않음.
+function maybeGrowVirtualTable(kind, bodyScroll){
+  if(viewMode!=='day') return;
+  var cols = buildColumns();
+  if(cols.length<=VIRT_THRESHOLD) return;
+  var wrapId = kind==='att' ? 'attTableWrap' : 'posTableWrap';
+  var renderCount = kind==='att' ? attRenderCount : posRenderCount;
+  if(renderCount>=cols.length) return;
+  var dataW = dataColWidthForMode(wrapId, cols, kind==='att'?1:2);
+  var renderedEdgePx = GRID_LBL1_W+GRID_LBL2_W+renderCount*dataW;
+  if(bodyScroll.scrollLeft+bodyScroll.clientWidth+VIRT_LOOKAHEAD_PX < renderedEdgePx) return;
+  var nextCount = Math.min(cols.length, renderCount+VIRT_CHUNK);
+  var keepScroll = bodyScroll.scrollLeft;
+  if(kind==='att') renderAttendanceTable(cols, nextCount); else renderPositionTable(cols, nextCount);
+  bodyScroll.scrollLeft = keepScroll;   // 표 내용을 다시 그리는 동안 스크롤 위치가 흔들릴 수 있어 그대로 복원
 }
 // 페이지 자체는 스크롤 안 되게 막아뒀으니(overflow:hidden), 지금 활성 탭의 표 영역(.tablewrap) 높이를
 // "화면 끝까지 남은 만큼"으로 실측해서 채워 넣음 — 그래야 표 내부 스크롤만으로 전체가 다 보임.
@@ -471,7 +499,19 @@ function setViewMode(mode){
     document.querySelectorAll('#'+p+'Seg .seg-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode===mode); });
   });
   updateSectionTitles();
-  loadPeriodData();
+  // 일별/주간/월간은 같은 예상 시작일~완료일 데이터를 다르게 묶어 보여주는 것뿐이라, 그 기간이 안 바뀌었으면
+  // (=이미 서버에서 받아온 데이터가 있으면) 재조회 없이 다시 그리기만 함 — 모드를 누를 때마다 매번 Supabase를
+  // 다시 조회하던 것을 없애 전환 속도를 크게 개선(2026-08-07).
+  var range = reportRange();
+  if(fetchedRangeKey===(range.start+'|'+range.end)){
+    attRenderCount=0; posRenderCount=0;   // 모드가 바뀌면 가상 스크롤 펼침 정도는 처음부터 다시 시작
+    var cols = buildColumns();
+    renderAttendanceTable(cols);
+    renderPositionTable(cols);
+    fitTableWrapHeight();
+  } else {
+    loadPeriodData();
+  }
 }
 function fixedHolidaysForYear(year){ return FIXED_HOLIDAYS_MMDD.map(function(h){ return {date:year+'-'+h.md,name:h.name}; }); }
 function getHolidaysForYear(year){
@@ -576,7 +616,11 @@ async function applyManualRows(start, end){
 async function loadPeriodData(){
   attByMemberDate = {};
   var cols = buildColumns();                      // 일별/주간/월간 전부 예상 시작일~완료일에 종속(항상 같은 기간)
-  var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
+  var range = reportRange();
+  // 서버 조회 범위는 항상 "달 단위로 여유있게 패딩된" 최대 범위(월간 버킷 기준)로 한 번만 받아둠 — 일별/주간
+  // 버킷은 이 범위보다 좁거나 같아서(월 경계 안쪽) 이후 모드를 바꿔도(setViewMode) 재조회 없이 재사용 가능함.
+  var fetchCols = (range.start && range.end) ? monthBucketsInRange(range.start, range.end) : [];
+  var allDays = fetchCols.reduce(function(a,c){ return a.concat(c.days); },[]);
   if(allDays.length){
     var start = allDays[0], end = allDays[allDays.length-1];
     var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
@@ -585,6 +629,8 @@ async function loadPeriodData(){
   } else {
     manualByKey = {};
   }
+  fetchedRangeKey = range.start+'|'+range.end;
+  attRenderCount = 0; posRenderCount = 0;   // 새로 받아온 데이터로 다시 그리는 것이므로 가상 스크롤도 처음부터
   renderMigBanner();
   renderAttendanceTable(cols);
   renderPositionTable(cols);
@@ -737,7 +783,7 @@ function groupRowFor(cols, trailingCount){
   if(viewMode==='month' && colsSpanMultipleYears(cols)) return yearGroupRowHtml(cols, trailingCount);
   return '';
 }
-function renderAttendanceTable(cols){
+function renderAttendanceTable(cols, renderCount){
   var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
   var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
   var dataW = dataColWidthForMode('attTableWrap', cols, 1);
@@ -745,24 +791,33 @@ function renderAttendanceTable(cols){
   var rowspan = groupRow ? 3 : 2;   // 캡션(1행)의 이름/직책 라벨 칸이 몇 행까지 병합돼야 하는지(구분 행 유무에 따라 2 또는 3)
   var tableW = gridTableWidth(cols.length,1,dataW);
   var cg = colGroupHtml(cols.length,1,dataW);
+  // 일별 모드에서 기간이 길어 열이 VIRT_THRESHOLD를 넘으면 한 번에 다 그리지 않고 앞에서부터 VIRT_CHUNK개만 그림
+  // (colgroup은 항상 cols.length 전체 기준이라 표/스크롤바 너비는 그대로 정확함 — 안 그려진 뒤쪽만 회색 처리).
+  var virtualize = viewMode==='day' && cols.length>VIRT_THRESHOLD;
+  var rc = virtualize ? Math.min(renderCount||VIRT_CHUNK, cols.length) : cols.length;
+  attRenderCount = rc;
+  var visCols = virtualize ? cols.slice(0, rc) : cols;
+  var hiddenCount = cols.length - rc;
+  var hiddenHead = hiddenCount ? '<th colspan="'+hiddenCount+'" class="vlazy">가로로 스크롤하면 표시됩니다 →</th>' : '';
+  var hiddenBody = hiddenCount ? '<td colspan="'+hiddenCount+'" class="vlazy"></td>' : '';
   // 헤더는 별도의 안 움직이는 표(.tw-head-clip)에, 본문은 스크롤되는 표(.tw-body-scroll)에 — 열 폭(colgroup)은 완전히 동일하게 맞춰서 정렬됨
   var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
     +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">이름</th><th class="lbl2" rowspan="'+rowspan+'">직책/구분</th><th colspan="'+(cols.length+1)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
     +groupRow
-    +'<tr>'+colHeadHtml(cols)+'<th>합계</th></tr></thead></table>';
+    +'<tr>'+colHeadHtml(visCols)+hiddenHead+'<th>합계</th></tr></thead></table>';
   var bodyHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg+'<tbody>';
   if(!cols.length){
     bodyHtml += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
   } else {
     bodyHtml += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'"><span class="stick">간접인원</span></td></tr>';
-    mgmt.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols); });
+    mgmt.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody); });
     bodyHtml += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'"><span class="stick">직접인원</span></td></tr>';
-    field.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols); });
+    field.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody); });
   }
   bodyHtml += '</tbody></table>';
   document.getElementById('attTableHead').innerHTML = headHtml;
   document.getElementById('attTableWrap').innerHTML = bodyHtml;
-  bindHeaderSync(document.getElementById('attTableWrap'));
+  bindHeaderSync(document.getElementById('attTableWrap'), 'att');
   var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
   var totalMD = mgmt.concat(field).reduce(function(s,m){
     var rec = attByMemberDate[m.id]||{};
@@ -771,7 +826,10 @@ function renderAttendanceTable(cols){
   var periodLabel = viewMode==='day' ? '이번달' : (viewMode==='week' ? '이번달(주간)' : '이번달(월간)');
   document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · '+periodLabel+' 총 출력 '+totalMD+'MD';
 }
-function memberBlockHtml(m, cols){
+// visCols: 실제로 <td>를 그릴 열(가상 스크롤 대상이면 cols의 앞부분만). hiddenBody: 안 그린 뒤쪽 열을 대신할 회색 칸(콜스팬) —
+// 합계는 화면에 아직 안 그려진 열도 포함해서(cols 전체 기준) 항상 정확하게 계산함.
+function memberBlockHtml(m, cols, visCols, hiddenBody){
+  visCols = visCols || cols; hiddenBody = hiddenBody || '';
   var rec = attByMemberDate[m.id] || {};
   var rows = [
     {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:true},
@@ -784,23 +842,27 @@ function memberBlockHtml(m, cols){
     html += '<tr>';
     if(i===0) html += '<th class="lbl" rowspan="5">'+esc(m.name)+'</th>';
     html += '<td class="lbl2">'+r.key+'</td>';
-    cols.forEach(function(c){
+    visCols.forEach(function(c){
       var v = sumRowOverCol(r.get, c);
       var single = c.days.length===1;
       var cls = (c.cls||'') + (r.auto?'':' flag'+(v?' on':''));
       var onclick = (r.auto || !single) ? '' : ' onclick="toggleManual(\''+m.id+'\',\''+c.days[0]+'\',\''+r.field+'\')"';
       html += '<td class="'+cls+'"'+onclick+'>'+(v||'')+'</td>';
     });
-    html += '<td></td></tr>';
+    html += hiddenBody+'<td></td></tr>';
   });
   var grandTotal=0;
-  html += '<tr class="tot-row"><td class="lbl2">합계</td>';
-  cols.forEach(function(c){
+  var totCells = visCols.map(function(c){
     var t = rows.reduce(function(s,r){ return s + sumRowOverCol(r.get, c); },0);
     grandTotal += t;
-    html += '<td class="'+(c.cls||'')+'">'+(t||'')+'</td>';
-  });
-  html += '<td>'+grandTotal+'</td></tr>';
+    return '<td class="'+(c.cls||'')+'">'+(t||'')+'</td>';
+  }).join('');
+  if(visCols.length<cols.length){
+    cols.slice(visCols.length).forEach(function(c){
+      grandTotal += rows.reduce(function(s,r){ return s + sumRowOverCol(r.get, c); },0);
+    });
+  }
+  html += '<tr class="tot-row"><td class="lbl2">합계</td>'+totCells+hiddenBody+'<td>'+grandTotal+'</td></tr>';
   return html;
 }
 async function toggleManual(memberId, dateStr, field){
@@ -809,14 +871,30 @@ async function toggleManual(memberId, dateStr, field){
   var cur = manualByKey[key] || {member_id:memberId, date:dateStr, extra:0, leave:0};
   cur[field] = cur[field] ? 0 : 1;
   manualByKey[key] = cur;
-  renderAttendanceTable(buildColumns());
+  renderAttendanceTable(buildColumns(), attRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
   var res = await sb.from('attendance_manual').upsert({member_id:memberId, date:dateStr, extra:cur.extra||0, leave:cur.leave||0}, {onConflict:'member_id,date'});
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); }
 }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
 // ---------- 공종별 인원투입계획 및 실투입 비교 ----------
-function renderPositionTable(cols){
+// 날짜별×직책별 실제 출력 인원수를 미리 한 번 집계해둠 — 이게 없으면 아래 actCount 계산이 "열마다 매번 전체
+// membersList를 훑는" 구조라 기간이 길어질수록(특히 일별 모드) 느려짐(2026-08-07, 성능 개선).
+function buildPositionDayCounts(){
+  var m={};
+  membersList.forEach(function(mem){
+    var rec = attByMemberDate[mem.id];
+    if(!rec) return;
+    Object.keys(rec).forEach(function(d){
+      if(rec[d] && rec[d].checkIn){
+        if(!m[d]) m[d]={};
+        m[d][mem.position] = (m[d][mem.position]||0)+1;
+      }
+    });
+  });
+  return m;
+}
+function renderPositionTable(cols, renderCount){
   var editMonthStr = (appSettings.report_start_date||'').slice(0,7);   // 계획인원 수정은 일별 모드에서만, 예상 시작일이 속한 달 기준(주간/월간 합산 화면에서는 편집 안 함)
   var editMonthPlan = positionPlanQty[editMonthStr] || {};
   var dataW = dataColWidthForMode('posTableWrap', cols, 2);
@@ -824,35 +902,51 @@ function renderPositionTable(cols){
   var rowspan = groupRow ? 3 : 2;
   var tableW = gridTableWidth(cols.length,2,dataW);
   var cg = colGroupHtml(cols.length,2,dataW);
+  var virtualize = viewMode==='day' && cols.length>VIRT_THRESHOLD;   // renderAttendanceTable과 같은 가상 스크롤 방식
+  var rc = virtualize ? Math.min(renderCount||VIRT_CHUNK, cols.length) : cols.length;
+  posRenderCount = rc;
+  var visCols = virtualize ? cols.slice(0, rc) : cols;
+  var hiddenCols = cols.slice(visCols.length);
+  var hiddenCount = hiddenCols.length;
+  var hiddenHead = hiddenCount ? '<th colspan="'+hiddenCount+'" class="vlazy">가로로 스크롤하면 표시됩니다 →</th>' : '';
+  var hiddenBody = hiddenCount ? '<td colspan="'+hiddenCount+'" class="vlazy"></td>' : '';
+  var posDayCounts = buildPositionDayCounts();
   var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
     +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">직책</th><th class="lbl2" rowspan="'+rowspan+'">구분</th><th colspan="'+(cols.length+2)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
     +groupRow
-    +'<tr>'+colHeadHtml(cols)+'<th>합계</th><th>달성률</th></tr></thead></table>';
+    +'<tr>'+colHeadHtml(visCols)+hiddenHead+'<th>합계</th><th>달성률</th></tr></thead></table>';
   var html = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg+'<tbody>';
+  function dayPlanSumFor(pos, c){
+    return c.days.reduce(function(s,d){
+      if(isNonWorkDay(d)) return s;
+      return s + (+((positionPlanQty[d.slice(0,7)]||{})[pos]||0));   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
+    },0);
+  }
+  function actCountFor(pos, c){
+    return c.days.reduce(function(s,d){ return s + ((posDayCounts[d]||{})[pos]||0); },0);
+  }
   function posRowHtml(pos){
     var editVal = +(editMonthPlan[pos]||0);
     var planTotal=0, actTotal=0;
     var planRow='', actRow='';
-    cols.forEach(function(c){
-      var dayPlanSum = c.days.reduce(function(s,d){
-        if(isNonWorkDay(d)) return s;
-        return s + (+((positionPlanQty[d.slice(0,7)]||{})[pos]||0));   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
-      },0);
+    visCols.forEach(function(c){
+      var dayPlanSum = dayPlanSumFor(pos, c);
       planTotal += dayPlanSum;
       planRow += '<td class="'+(c.cls||'')+'">'+(dayPlanSum||'')+'</td>';
-      var actCount = c.days.reduce(function(s,d){
-        return s + membersList.filter(function(m){
-          return m.position===pos && attByMemberDate[m.id] && attByMemberDate[m.id][d] && attByMemberDate[m.id][d].checkIn;
-        }).length;
-      },0);
+      var actCount = actCountFor(pos, c);
       actTotal += actCount;
       actRow += '<td class="'+(c.cls||'')+'">'+(actCount||'')+'</td>';
+    });
+    // 합계/달성률은 화면에 아직 안 그려진 열도 포함해서(cols 전체 기준) 항상 정확하게 계산함.
+    hiddenCols.forEach(function(c){
+      planTotal += dayPlanSumFor(pos, c);
+      actTotal += actCountFor(pos, c);
     });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
     var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
     var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
-    return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
-      + '<tr><td class="lbl2">A/F</td>'+actRow+'<td>'+(actTotal||'')+'</td></tr>';
+    return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
   }
   if(!cols.length){
     html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
@@ -865,7 +959,7 @@ function renderPositionTable(cols){
   html += '</tbody></table>';
   document.getElementById('posTableHead').innerHTML = headHtml;
   document.getElementById('posTableWrap').innerHTML = html;
-  bindHeaderSync(document.getElementById('posTableWrap'));
+  bindHeaderSync(document.getElementById('posTableWrap'), 'pos');
 }
 async function savePositionPlanQty(pos, val, monthStr){
   if(!positionPlanQty[monthStr]) positionPlanQty[monthStr] = {};
@@ -873,7 +967,7 @@ async function savePositionPlanQty(pos, val, monthStr){
   var res = await sb.from('app_settings').update({position_plan_qty:positionPlanQty}).eq('id','global');
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); return; }
   showToast('✅ 저장됨','var(--ok)');
-  renderPositionTable(buildColumns());
+  renderPositionTable(buildColumns(), posRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
 }
 
 // ---------- 근로자명단 ----------
