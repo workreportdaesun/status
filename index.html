@@ -1006,7 +1006,9 @@ function mobColGroupHtml(n, dataW){
 function renderMobilizationTable(){
   var range = reportRange();
   var months = (range.start && range.end) ? monthBucketsInRange(range.start, range.end) : [];
-  var dataW = months.length ? Math.max(measureMaxLabelWidth(months)+18, GRID_DATA_MIN) : GRID_DATA_MIN;
+  // 칸 안에 계획인원 입력창(input.qi, 폭 56px 고정)이 들어가므로, 월 라벨("2026-03") 글자 폭뿐 아니라
+  // 입력창+좌우 여백(padding 7px*2)도 넉넉히 들어가는 폭을 보장해야 함 — 라벨 기준 폭만 쓰면 입력창이 잘렸음(2026-08-07).
+  var dataW = months.length ? Math.max(measureMaxLabelWidth(months)+18, 56+18, GRID_DATA_MIN) : GRID_DATA_MIN;
   var tableW = GRID_LBL1_W + months.length*dataW;
   var cg = mobColGroupHtml(months.length, dataW);
   function monthStrOf(c){ return c.days.length ? c.days[0].slice(0,7) : c.label; }
