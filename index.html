@@ -72,7 +72,9 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 /* border-collapse:collapse는 브라우저가 th/td의 position:sticky를 아예 무시하게 만듦(다른 자매 앱에서 이미
    확인된 문제) — sticky 헤더가 작동하려면 반드시 separate여야 함. */
 table.dt{border-collapse:separate; border-spacing:0; width:100%; font-size:12px; white-space:nowrap;}
-table.dt th, table.dt td{border:1px solid #E3EAF2; padding:5px 7px; text-align:center;}
+/* 2026-08-07: 구분선이 잘 안 보인다는 지적 — 기존 #E3EAF2는 흰 배경과의 대비가 1.21:1로 작업일보(work-report-daesun)
+   .dtable의 테두리색(--card-bd #D1DCE8, 대비 1.39:1)보다도 옅어서 잘 안 보였음. 같은 --card-bd로 통일. */
+table.dt th, table.dt td{border:1px solid var(--card-bd); padding:5px 7px; text-align:center;}
 /* .tablewrap이 세로 스크롤 컨테이너라 top:0은 그 박스 맨 위 기준(페이지 top이 아님) — 표 안에서 스크롤할 때 날짜 행이 고정됨.
    2026-08-07: 진한 남색 채움+흰 글씨는 작업일보(work-report-daesun) 쪽 표(.dtable)보다 훨씬 진하다는 지적으로,
    작업일보와 같은 밝은 회청색(--head-bg)+짙은 글자로 톤을 맞춤. */
