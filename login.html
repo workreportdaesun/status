@@ -145,6 +145,8 @@ function saveSession(m){
   localStorage.setItem('member_menu', m.menu || '');
   localStorage.setItem('member_cat', m.cat || '');
   localStorage.setItem('member_position', m.position || '');
+  // 권한 3단계(2026-08-09) — 값이 비어 있으면 가장 낮은 worker로 본다. report와 공유하는 키다.
+  localStorage.setItem('member_role', m.role || 'worker');
   localStorage.setItem('member_is_leader', m.is_leader ? '1' : '0');
   localStorage.setItem('senderName', m.name);
 }
