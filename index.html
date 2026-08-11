@@ -149,6 +149,15 @@ table.dt td input.txi{width:90px; border:1px solid var(--field-bd); border-radiu
 .migbox pre{background:#2B2B2B; color:#F5F5F5; border-radius:8px; padding:10px; overflow-x:auto; font-size:11px; line-height:1.6; margin-top:6px;}
 .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); max-width:calc(100vw - 32px); padding:10px 20px; border-radius:10px; font-size:14px; font-weight:700; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.2); opacity:0; pointer-events:none; transition:opacity .25s; white-space:normal; text-align:center; line-height:1.4; z-index:9998;}
 .toast.show{opacity:1;}
+/* 설정 모달 — 탭으로 늘 띄워둘 필요는 없지만 가끔 열어서 조회/추가해야 하는 항목(공휴일 등)을 담는 창 */
+.modal-bd{position:fixed; inset:0; background:rgba(13,17,23,.55); z-index:9990; display:none; align-items:center; justify-content:center; padding:24px;}
+.modal-bd.show{display:flex;}
+.modal{background:var(--card); border:1px solid var(--card-bd); border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.28); width:100%; max-width:620px; max-height:calc(100vh - 48px); display:flex; flex-direction:column; overflow:hidden;}
+.modal-hd{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:#fff;}
+.modal-hd h2{margin:0; font-size:16px; font-weight:800; color:#fff;}
+.modal-x{border:none; background:transparent; color:#fff; font-size:20px; line-height:1; cursor:pointer; padding:2px 6px;}
+.modal-bd .modal-body{padding:14px 16px; overflow-y:auto;}
+.modal-body .tablewrap{max-height:46vh; overflow:auto;}
 </style>
 </head>
 <body>
@@ -176,6 +185,7 @@ if(isMobileDevice){
   </div>
   <div class="hdr-right">
     <span id="hdrToday"></span>
+    <button class="btn sm ghost" style="color:#fff;border-color:rgba(255,255,255,.4);" onclick="openSettings()">⚙️ 설정</button>
     <button class="btn sm ghost" style="color:#fff;border-color:rgba(255,255,255,.4);" onclick="location.href='https://workreportdaesun.github.io/report/app/admin.html'">작업일보 관리자↗</button>
   </div>
 </div>
@@ -184,7 +194,6 @@ if(isMobileDevice){
   <button class="tab-btn active" data-tab="att" onclick="switchTab('att')">출력일지</button>
   <button class="tab-btn" data-tab="pos" onclick="switchTab('pos')">공종별 인원투입</button>
   <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
-  <button class="tab-btn" data-tab="hol" onclick="switchTab('hol')">공휴일</button>
   <button class="tab-btn" data-tab="mat" onclick="switchTab('mat')">물량소화계획</button>
   <button class="tab-btn" data-tab="mob" onclick="switchTab('mob')">인원동원계획</button>
 </div>
@@ -247,21 +256,6 @@ if(isMobileDevice){
     </div>
   </div>
 
-  <!-- 공휴일 -->
-  <div class="tab-panel" id="panel-hol">
-    <div class="card">
-      <h2>공휴일</h2>
-      <div class="toolbar">
-        <label>연도</label>
-        <select id="holYear" class="f" onchange="renderHolidayTable()"></select>
-        <button class="btn sm" onclick="addCustomHoliday()">+ 공휴일 추가</button>
-        <button class="btn sm ghost" onclick="saveHolidaysExtra()">저장</button>
-      </div>
-      <div class="tablewrap"><table class="dt" style="width:auto;"><thead><tr><th>No</th><th>날짜</th><th>명칭</th><th>구분</th><th></th></tr></thead><tbody id="holBody"></tbody></table></div>
-      <div class="note">신정·3·1절·어린이날·현충일·광복절·개천절·한글날·크리스마스는 매년 자동 적용됩니다. 설날/추석/대체공휴일 등은 매년 날짜가 달라 직접 추가해야 합니다.</div>
-    </div>
-  </div>
-
   <!-- 물량소화계획 -->
   <div class="tab-panel" id="panel-mat">
     <div class="card">
@@ -295,6 +289,27 @@ if(isMobileDevice){
         <div class="tw-body-scroll"><div id="mobTableWrap">불러오는 중...</div></div>
       </div>
       <div class="note">공종별 인원투입 탭과 같은 계획인원(position_plan_qty) 데이터를 월 단위로만 보여주는 화면입니다 — 여기서 셀을 수정하면 공종별 인원투입 탭에도 그대로 반영됩니다. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 입력값을 그대로 더한 값).</div>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 (공휴일) -->
+<div class="modal-bd" id="settingsModal" onclick="if(event.target===this) closeSettings()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>⚙️ 설정</h2>
+      <button class="modal-x" onclick="closeSettings()" title="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <h2 style="font-size:14px; font-weight:800; color:var(--brand-1); margin:0 0 10px;">공휴일</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="holYear" class="f" onchange="renderHolidayTable()"></select>
+        <button class="btn sm" onclick="addCustomHoliday()">+ 공휴일 추가</button>
+        <button class="btn sm ghost" onclick="saveHolidaysExtra()">저장</button>
+      </div>
+      <div class="tablewrap"><table class="dt" style="width:auto;"><thead><tr><th>No</th><th>날짜</th><th>명칭</th><th>구분</th><th></th></tr></thead><tbody id="holBody"></tbody></table></div>
+      <div class="note">신정·3·1절·어린이날·현충일·광복절·개천절·한글날·크리스마스는 매년 자동 적용됩니다. 설날/추석/대체공휴일 등은 매년 날짜가 달라 직접 추가해야 합니다. 추가·삭제 후 반드시 <b>저장</b>을 눌러야 반영됩니다.</div>
     </div>
   </div>
 </div>
@@ -387,11 +402,21 @@ function switchTab(name){
   document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
   document.getElementById('panel-'+name).classList.add('active');
   if(name==='mem') renderMembersTab();
-  if(name==='hol') renderHolidayTable();
   if(name==='mat') renderMaterialTable();
   if(name==='mob') renderMobilizationTable();
   fitTableWrapHeight();
 }
+// 공휴일은 탭이 아니라 헤더 ⚙️설정에서 열리는 모달로 관리한다(자주 볼 화면이 아니라 탭 자리를 차지할 이유가 없음).
+function openSettings(){
+  document.getElementById('settingsModal').classList.add('show');
+  renderHolidayTable();
+}
+function closeSettings(){
+  document.getElementById('settingsModal').classList.remove('show');
+}
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape' && document.getElementById('settingsModal').classList.contains('show')) closeSettings();
+});
 // 출력일지/공종별 인원투입 전용 — 본문(.tw-body-scroll)을 가로로 스크롤하면 그 스크롤량을 고정 헤더(.tw-head-clip)에도
 // 그대로 복사해서 두 표의 열이 항상 맞물리게 함(리스너는 한 번만 등록 — 표 내용은 매번 새로 그려져도 감싸는 스크롤
 // 요소 자체는 그대로라 재바인딩할 필요 없음).
