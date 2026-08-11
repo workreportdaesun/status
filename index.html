@@ -210,6 +210,9 @@ if(isMobileDevice){
   <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
   <button class="tab-btn" data-tab="mat" onclick="switchTab('mat')">물량소화계획</button>
   <button class="tab-btn" data-tab="mob" onclick="switchTab('mob')">인원동원계획</button>
+  <!-- 자재관리는 별도 앱(/material/)을 iframe으로 그대로 띄운다(2026-08-11). 코드를 합치지 않아
+       CSS·전역변수 충돌이 없고, 자재관리 쪽 수정도 지금처럼 그 저장소에서만 하면 된다. -->
+  <button class="tab-btn" data-tab="mtl" onclick="switchTab('mtl')">자재관리</button>
 </div>
 
 <div class="container">
@@ -306,6 +309,15 @@ if(isMobileDevice){
       </div>
       <div class="note">공종별 인원투입 탭과 같은 계획인원(position_plan_qty) 데이터를 월 단위로만 보여주는 화면입니다 — 여기서 셀을 수정하면 공종별 인원투입 탭에도 그대로 반영됩니다. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 입력값을 그대로 더한 값).</div>
     </div>
+  </div>
+
+  <!-- 자재관리 — 별도 앱(/material/)을 embed 모드로 띄운다. 처음 탭을 열 때 한 번만 불러오고
+       (lazy), 높이는 안쪽 내용에 맞춰 늘려서 스크롤바가 두 개 생기지 않게 한다. -->
+  <div class="tab-panel" id="panel-mtl">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <iframe id="mtlFrame" title="자재관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
+    </div>
+    <div class="note">자재관리는 별도 앱(<a href="/material/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)을 이 탭 안에 그대로 띄운 것입니다 — 입력·저장은 여기서 바로 됩니다.</div>
   </div>
 </div>
 
@@ -427,8 +439,47 @@ function switchTab(name){
   if(name==='mem') renderMembersTab();
   if(name==='mat') renderMaterialTable();
   if(name==='mob') renderMobilizationTable();
+  if(name==='mtl') openMaterialFrame();
   fitTableWrapHeight();
 }
+
+/* ── 자재관리 탭(별도 앱을 iframe으로) ──────────────────────────────
+   같은 도메인이라 안쪽 문서를 직접 읽을 수 있어, 내용 높이에 맞춰 iframe을 늘린다
+   (postMessage 없이 됨). 그래야 스크롤바가 안팎으로 두 개 생기지 않는다.
+   숨어 있는 탭은 폭이 0이라 로드해봐야 레이아웃이 안 나오므로, 탭을 처음 열 때 불러온다. */
+var mtlLoaded=false, mtlObserver=null;
+function syncMtlHeight(){
+  var f=document.getElementById('mtlFrame');
+  if(!f) return;
+  try{
+    var d=f.contentDocument;
+    if(!d || !d.body) return;
+    var h=Math.max(d.body.scrollHeight, d.documentElement.scrollHeight);
+    if(h>0) f.style.height=(h+8)+'px';
+  }catch(e){ /* 다른 도메인으로 바뀐 경우 등 — 고정 높이 그대로 둔다 */ }
+}
+function openMaterialFrame(){
+  var f=document.getElementById('mtlFrame');
+  if(!f) return;
+  if(mtlLoaded){ syncMtlHeight(); return; }
+  mtlLoaded=true;
+  f.addEventListener('load', function(){
+    syncMtlHeight();
+    // 접기/펼치기·저장으로 내용 높이가 바뀔 때마다 따라간다.
+    try{
+      var b=f.contentDocument && f.contentDocument.body;
+      if(b && window.ResizeObserver){
+        if(mtlObserver) mtlObserver.disconnect();
+        mtlObserver=new ResizeObserver(function(){ syncMtlHeight(); });
+        mtlObserver.observe(b);
+      }
+    }catch(e){}
+  });
+  f.src='/material/index.html?embed=1';
+}
+window.addEventListener('resize', function(){
+  if(document.getElementById('panel-mtl') && document.getElementById('panel-mtl').classList.contains('active')) syncMtlHeight();
+});
 // 공휴일은 탭이 아니라 헤더 ⚙️설정에서 열리는 모달로 관리한다(자주 볼 화면이 아니라 탭 자리를 차지할 이유가 없음).
 function openSettings(){
   document.getElementById('settingsModal').classList.add('show');
