@@ -69,6 +69,9 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 /* overflow-x:scroll(auto 아님)로 가로 스크롤바를 항상 그 자리에 고정해서 보이게 하고, max-height로 표 박스 자체를
    화면 안에 가둬서(세로는 auto로 필요할 때만) 가로 스크롤바가 페이지 맨 아래가 아니라 표 바로 밑에 항상 있게 함. */
 .tablewrap{overflow-x:scroll; overflow-y:auto; max-height:70vh; border:1px solid var(--card-bd); border-radius:8px;}
+/* 삽입 탭(자재관리·공정률·CHECK LIST)의 화면 틀 — 표(.tablewrap)와 같은 테두리·모서리를 써서
+   다른 탭과 서식을 맞춘다(2026-08-11 통일). */
+.embed-wrap{border:1px solid var(--card-bd); border-radius:8px; overflow:hidden; background:var(--card);}
 /* 출력일지/공종별 인원투입 전용(다른 탭의 .tablewrap은 그대로 위 규칙을 씀) — 헤더 행이 많으면 브라우저의
    position:sticky가 세로 스크롤 시 불안정하게 깨지는 문제가 있어(2026-08-07 실측 확인), CSS sticky에 기대지 않고
    헤더를 아예 별도의 안 움직이는 영역(.tw-head-clip)으로 분리하고 본문(.tw-body-scroll)만 스크롤되게 함.
@@ -319,10 +322,13 @@ if(isMobileDevice){
   <!-- 자재관리 — 별도 앱(/material/)을 embed 모드로 띄운다. 처음 탭을 열 때 한 번만 불러오고
        (lazy), 높이는 안쪽 내용에 맞춰 늘려서 스크롤바가 두 개 생기지 않게 한다. -->
   <div class="tab-panel" id="panel-mtl">
-    <div class="card" style="padding:0; overflow:hidden;">
-      <iframe id="mtlFrame" title="자재관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
+    <div class="card">
+      <h2>자재관리</h2>
+      <div class="embed-wrap">
+        <iframe id="mtlFrame" title="자재관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
+      </div>
+      <div class="note">자재관리는 별도 앱(<a href="/material/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)을 이 탭 안에 그대로 띄운 것입니다 — 입력·저장은 여기서 바로 됩니다.</div>
     </div>
-    <div class="note">자재관리는 별도 앱(<a href="/material/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)을 이 탭 안에 그대로 띄운 것입니다 — 입력·저장은 여기서 바로 됩니다.</div>
   </div>
 
   <!-- 공정관리 — 자재관리와 달리 화면 높이를 채우고 안쪽에서 스크롤한다.
@@ -330,10 +336,13 @@ if(isMobileDevice){
        내용 높이에 맞추면 (iframe이 커짐 → innerHeight가 커짐 → 표가 커짐 → 또 커짐)으로
        끝없이 늘어난다. 그래서 여기는 높이를 화면 기준으로 고정한다. -->
   <div class="tab-panel" id="panel-prg">
-    <div class="card" style="padding:0; overflow:hidden;">
-      <iframe id="prgFrame" title="공정관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
+    <div class="card">
+      <h2 id="prgTitle">공정률</h2>
+      <div class="embed-wrap">
+        <iframe id="prgFrame" title="공정관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
+      </div>
+      <div class="note">공정률·CHECK LIST는 별도 앱(<a href="/progress/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)의 두 화면을 각각 탭으로 둔 것입니다 — 두 탭은 같은 화면 하나를 공유하므로 오갈 때 다시 불러오지 않습니다.</div>
     </div>
-    <div class="note">공정률·CHECK LIST는 별도 앱(<a href="/progress/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)의 두 화면을 각각 탭으로 둔 것입니다 — 두 탭은 같은 화면 하나를 공유하므로 오갈 때 다시 불러오지 않습니다.</div>
   </div>
 </div>
 
@@ -458,8 +467,11 @@ function switchTab(name){
   if(name==='mat') renderMaterialTable();
   if(name==='mob') renderMobilizationTable();
   if(name==='mtl') openMaterialFrame();
-  if(name==='prg') openProgressFrame('proc');
-  if(name==='chk') openProgressFrame('check');
+  if(name==='prg' || name==='chk'){
+    var t=document.getElementById('prgTitle');
+    if(t) t.textContent = (name==='chk') ? 'CHECK LIST' : '공정률';
+    openProgressFrame(name==='chk' ? 'check' : 'proc');
+  }
   fitTableWrapHeight();
 }
 
