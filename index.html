@@ -500,7 +500,7 @@ function fitFrameToViewport(id){
   // 안내문이 한 줄이냐 두 줄이냐에 따라 아래가 뜨거나 잘렸다(2026-08-11).
   var panel=f.closest('.tab-panel');
   var note=panel?panel.querySelector('.note'):null;
-  var reserve=(note?note.getBoundingClientRect().height:0)+30;
+  var reserve=(note?note.getBoundingClientRect().height:0)+20;   // 카드 아래 여백만 남긴다
   var top=f.getBoundingClientRect().top + (window.scrollY||0);
   f.style.height=Math.max(420, Math.floor(window.innerHeight - top - reserve))+'px';
 }
