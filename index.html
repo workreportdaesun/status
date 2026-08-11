@@ -71,7 +71,8 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 .tablewrap{overflow-x:scroll; overflow-y:auto; max-height:70vh; border:1px solid var(--card-bd); border-radius:8px;}
 /* 삽입 탭(자재관리·공정률·CHECK LIST)의 화면 틀 — 표(.tablewrap)와 같은 테두리·모서리를 써서
    다른 탭과 서식을 맞춘다(2026-08-11 통일). */
-.embed-wrap{border:1px solid var(--card-bd); border-radius:8px; overflow:hidden; background:var(--card);}
+.embed-wrap{overflow:hidden; background:var(--card);}   /* 테두리는 안쪽 앱의 컨트롤·표가 이미 갖고 있다 —
+   여기에 또 두르면 윤곽선이 두 겹이 되어 다른 탭과 달라 보인다(2026-08-11). */
 /* 출력일지/공종별 인원투입 전용(다른 탭의 .tablewrap은 그대로 위 규칙을 씀) — 헤더 행이 많으면 브라우저의
    position:sticky가 세로 스크롤 시 불안정하게 깨지는 문제가 있어(2026-08-07 실측 확인), CSS sticky에 기대지 않고
    헤더를 아예 별도의 안 움직이는 영역(.tw-head-clip)으로 분리하고 본문(.tw-body-scroll)만 스크롤되게 함.
