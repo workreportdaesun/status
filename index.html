@@ -234,7 +234,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="attTableHead"></div></div>
         <div class="tw-body-scroll"><div id="attTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">기본=출근체크, 연장=연장근무체크(체크인/출퇴근 앱의 GPS 체크 데이터 기준, 자동 반영) · 주/월차=자동 계산(주차: 그 주 근무일에 하루도 안 빠지면 1, 그 주 마지막 근무일에 표시 / 월차: 그 달 근무일에 하루도 안 빠지면 1, 그 달 마지막 근무일에 표시 — 공휴일은 근무일에서 제외) · 추가=관리자가 셀을 눌러 직접 표시(주/월차도 예외 케이스는 셀을 눌러 더할 수 있고, 수동 입력은 일별 모드에서만) · 일별은 위 월 선택기로 고른 <b>한 달</b>만 보여주고(◀ ▶로 이동), 주간/월간은 예상 시작일~완료일 전체를 묶어서 보여줍니다</div>
+      <div class="note">기본=출근, 연장=연장근무(출퇴근 앱의 GPS 체크가 자동 반영되고, <b>일별 모드에서 칸을 눌러 관리자가 직접 넣고 뺄 수 있습니다</b> — 앱을 안 쓰는 인원용) · 주/월차=자동 계산(주차: 그 주 근무일에 하루도 안 빠지면 1, 그 주 마지막 근무일에 표시 / 월차: 그 달 근무일에 하루도 안 빠지면 1, 그 달 마지막 근무일에 표시 — 공휴일은 근무일에서 제외) · 추가=관리자가 셀을 눌러 직접 표시(주/월차도 예외 케이스는 셀을 눌러 더할 수 있고, 수동 입력은 일별 모드에서만) · 일별은 위 월 선택기로 고른 <b>한 달</b>만 보여주고(◀ ▶로 이동), 주간/월간은 예상 시작일~완료일 전체를 묶어서 보여줍니다</div>
     </div>
   </div>
 
@@ -1055,9 +1055,12 @@ function renderAttendanceTable(cols, renderCount){
 function memberBlockHtml(m, cols, visCols, hiddenBody){
   visCols = visCols || cols; hiddenBody = hiddenBody || '';
   var rec = attByMemberDate[m.id] || {};
+  /* 기본·연장도 관리자가 셀을 눌러 넣고 뺄 수 있다(2026-08-11 사용자 요청). 출퇴근 앱을 안 쓰는
+     인원은 GPS 기록이 안 쌓여 주/월차가 영영 0이었다 — 여기서 출근을 채우면 daily_reports.crew에
+     그대로 들어가므로 주/월차 자동계산·공종별 A/F·출퇴근 앱까지 전부 같이 맞춰진다. */
   var rows = [
-    {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:true},
-    {key:'연장', get:function(d){ return rec[d] && rec[d].overtime ? 1:0; }, auto:true},
+    {key:'기본', get:function(d){ return rec[d] && rec[d].checkIn ? 1:0; }, auto:false, field:'checkIn'},
+    {key:'연장', get:function(d){ return rec[d] && rec[d].overtime ? 1:0; }, auto:false, field:'overtime'},
     {key:'추가', get:function(d){ return manualOn(m.id, d, 'extra'); }, auto:false, field:'extra'},
     // 주/월차는 자동 계산값(buildAutoLeave)에 관리자가 손으로 눌러 넣은 값을 더해서 보여줌 — 자동으로 안 잡히는
     // 예외 케이스를 셀 클릭으로 계속 보정할 수 있게 남겨둔 것이라 자동 1 + 수동 1이면 2로 표시됨.
@@ -1072,7 +1075,9 @@ function memberBlockHtml(m, cols, visCols, hiddenBody){
       var v = sumRowOverCol(r.get, c);
       var single = c.days.length===1;
       var cls = (c.cls||'') + (r.auto?'':' flag'+(v?' on':''));
-      var onclick = (r.auto || !single) ? '' : ' onclick="toggleManual(\''+m.id+'\',\''+c.days[0]+'\',\''+r.field+'\')"';
+      // 기본/연장은 crew(출근 기록)를, 추가/주월차는 attendance_manual을 고친다 — 저장 위치가 달라 함수도 다르다.
+      var fn = (r.field==='checkIn'||r.field==='overtime') ? 'toggleCrew' : 'toggleManual';
+      var onclick = (r.auto || !single) ? '' : ' onclick="'+fn+'(\''+m.id+'\',\''+c.days[0]+'\',\''+r.field+'\')"';
       html += '<td class="'+cls+'"'+onclick+'>'+(v||'')+'</td>';
     });
     html += hiddenBody+'<td></td></tr>';
@@ -1091,6 +1096,49 @@ function memberBlockHtml(m, cols, visCols, hiddenBody){
   html += '<tr class="tot-row"><td class="lbl2">합계</td>'+totCells+hiddenBody+'<td>'+grandTotal+'</td></tr>';
   return html;
 }
+/* 관리자가 출근/연장을 직접 넣고 뺀다(2026-08-11). 저장 위치는 출퇴근 앱이 GPS로 쓰는 곳과
+   같은 daily_reports.crew — 원천을 하나로 두어야 주/월차 자동계산, 공종별 A/F, 출퇴근 앱의
+   "내 출력일수"가 전부 같은 숫자를 본다.
+   crew 배열을 통째로 덮어쓰면 같은 팀 다른 사람 기록이 지워지므로, 출퇴근 앱과 똑같이
+   서버 함수 upsert_crew_entry로 그 사람 항목만 원자적으로 병합한다.
+   시각은 표시용이라 그날 08:00(출근)/17:00(연장)으로 넣고, 관리자가 넣었다는 표시로
+   checkInBy/overtimeBy에 'admin'을 남긴다(집계에는 안 쓰이고 나중에 구분이 필요할 때 대비). */
+async function toggleCrew(memberId, dateStr, field){
+  var m = membersList.find(function(x){ return x.id===memberId; });
+  if(!m){ showToast('⚠️ 근로자 명단에서 찾을 수 없습니다','var(--err)'); return; }
+  var team = m.team || '미지정';
+  var rec = (attByMemberDate[memberId] || {})[dateStr] || {};
+  var on = field==='checkIn' ? !!rec.checkIn : !!rec.overtime;
+  var atKey = field==='checkIn' ? 'checkInAt' : 'overtimeCheckAt';
+  var byKey = field==='checkIn' ? 'checkInBy' : 'overtimeBy';
+  var patch = {};
+  if(on){ patch[atKey] = null; patch[byKey] = null; }
+  else {
+    var hh = field==='checkIn' ? 8 : 17;
+    patch[atKey] = new Date(+dateStr.slice(0,4), +dateStr.slice(5,7)-1, +dateStr.slice(8,10), hh, 0, 0).toISOString();
+    patch[byKey] = 'admin';
+  }
+
+  // 화면부터 바꿔 바로 반응하게 하고(주/월차도 같이 다시 계산), 저장은 뒤에서 확인한다.
+  if(!attByMemberDate[memberId]) attByMemberDate[memberId] = {};
+  var cur = Object.assign({}, attByMemberDate[memberId][dateStr] || {});
+  if(field==='checkIn') cur.checkIn = !on; else cur.overtime = !on;
+  attByMemberDate[memberId][dateStr] = cur;
+  autoLeaveByMember = buildAutoLeave();   // 출근이 바뀌면 주/월차 개근 판정도 달라진다
+  var cols = buildColumns();
+  renderAttendanceTable(cols, attRenderCount);
+  renderPositionTable(cols, posRenderCount);
+
+  var res = await sb.rpc('upsert_crew_entry', {
+    p_id: team+'_'+dateStr, p_team: team, p_date: dateStr,
+    p_member_id: memberId, p_member_name: m.name || '', p_patch: patch
+  });
+  if(res.error){
+    showToast('⚠️ 저장 실패: '+res.error.message+(res.error.code==='PGRST202'?' (upsert_crew_entry 함수를 먼저 만들어주세요)':''), 'var(--err)');
+    await loadPeriodData();   // 실패했으면 화면을 서버 값으로 되돌린다
+  }
+}
+
 async function toggleManual(memberId, dateStr, field){
   if(!manualTableOk){ showToast('⚠️ attendance_manual 테이블을 먼저 만들어주세요','var(--err)'); return; }
   var key = memberId+'|'+dateStr;
