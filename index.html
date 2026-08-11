@@ -271,7 +271,7 @@ if(isMobileDevice){
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
         <button class="btn sm ghost" onclick="loadMaterialPlan(true)">기본목록으로 다시 채우기</button>
       </div>
-      <div class="tablewrap"><table class="dt" id="matTable" style="width:auto;">
+      <div class="tablewrap"><table class="dt" id="matTable" style="width:100%;">
         <thead><tr>
           <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
           <th>계약물량</th><th>작업일수<br>(DAY)</th><th>시공물량<br>(/DAY)</th>
@@ -408,6 +408,13 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
   document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
   document.getElementById('panel-'+name).classList.add('active');
+  // 숨겨진 탭은 폭이 0이라 "창을 꽉 채우는" 표 폭을 계산할 수 없음(로드 시점엔 공종별 인원투입 탭이 숨어 있음) —
+  // 탭이 실제로 보이게 된 뒤에 한 번 더 그려야 제 폭이 나옴(2026-08-11).
+  if((name==='att'||name==='pos') && fetchedRangeKey){
+    var cols = buildColumns();
+    if(name==='att') renderAttendanceTable(cols, attRenderCount);
+    else renderPositionTable(cols, posRenderCount);
+  }
   if(name==='mem') renderMembersTab();
   if(name==='mat') renderMaterialTable();
   if(name==='mob') renderMobilizationTable();
@@ -427,6 +434,16 @@ document.addEventListener('keydown', function(e){
 // 출력일지/공종별 인원투입 전용 — 본문(.tw-body-scroll)을 가로로 스크롤하면 그 스크롤량을 고정 헤더(.tw-head-clip)에도
 // 그대로 복사해서 두 표의 열이 항상 맞물리게 함(리스너는 한 번만 등록 — 표 내용은 매번 새로 그려져도 감싸는 스크롤
 // 요소 자체는 그대로라 재바인딩할 필요 없음).
+// 본문(.tw-body-scroll)에 세로 스크롤바가 생기면 그 폭만큼 본문 표가 좁아지는데, 헤더 영역(.tw-head-clip)은
+// 그대로라 헤더 오른쪽 끝에만 스크롤바 폭(약 15px)만큼 빈칸이 남음 — 헤더 박스를 같은 폭으로 줄여 그 빈칸을 없앤다.
+function syncHeadClipGutter(wrapId){
+  var wrap = document.getElementById(wrapId);
+  var bodyScroll = wrap ? wrap.closest('.tw-body-scroll') : null;
+  if(!bodyScroll || !bodyScroll.parentElement) return;
+  var headClip = bodyScroll.parentElement.querySelector('.tw-head-clip');
+  if(!headClip) return;
+  headClip.style.marginRight = Math.max(0, bodyScroll.offsetWidth - bodyScroll.clientWidth) + 'px';
+}
 function bindHeaderSync(tableWrapEl, kind){
   var bodyScroll = tableWrapEl.closest('.tw-body-scroll');
   if(!bodyScroll || bodyScroll._headerSyncBound) return;
@@ -469,7 +486,25 @@ function fitTableWrapHeight(){
   var avail = window.innerHeight - rect.top - bottomReserve;
   wrap.style.maxHeight = Math.max(160, Math.floor(avail)) + 'px';
 }
-window.addEventListener('resize', fitTableWrapHeight);
+// 창 크기가 바뀌면 높이뿐 아니라 표 폭도 새 창 폭에 맞춰 다시 계산해야 "꽉 찬 상태"가 계속 유지됨(2026-08-11).
+var _reflowTimer=null;
+window.addEventListener('resize', function(){
+  fitTableWrapHeight();
+  clearTimeout(_reflowTimer);
+  _reflowTimer=setTimeout(reflowActiveTable, 150);   // 드래그로 크기를 계속 바꾸는 동안 매번 다시 그리지 않도록 잠깐 모아서 처리
+});
+function reflowActiveTable(){
+  var activeBtn = document.querySelector('.tab-btn.active');
+  var name = activeBtn ? activeBtn.dataset.tab : '';
+  if((name==='att'||name==='pos') && fetchedRangeKey){
+    var cols = buildColumns();
+    if(name==='att') renderAttendanceTable(cols, attRenderCount);
+    else renderPositionTable(cols, posRenderCount);
+  } else if(name==='mob'){
+    renderMobilizationTable();
+  }
+  fitTableWrapHeight();
+}
 function monthDays(monthStr){
   var y=+monthStr.slice(0,4), m=+monthStr.slice(5,7);
   var n=new Date(y,m,0).getDate();
@@ -769,6 +804,26 @@ function fitDataColWidth(wrapId, dataColCount, trailingCount){
   if(w>GRID_DATA_MAX) w=GRID_DATA_MAX;
   return w;
 }
+// 창 폭을 데이터 열 수로 그대로 나눠, 열이 몇 개든 표가 항상 창 오른쪽 끝까지 꽉 차게 함(2026-08-11 요청).
+// 열이 적으면 열이 넓어지고 많으면 좁아질 뿐, 가로 스크롤은 만들지 않는다(글자는 필요하면 말줄임 처리됨).
+// 폭을 잴 수 없을 때(탭이 숨겨져 있어 clientWidth가 0)만 0을 돌려주고, 호출한 쪽이 예비값을 쓰게 함.
+function fillDataColWidth(wrapId, dataColCount, fixedWidth){
+  if(!dataColCount) return 0;
+  var wrap = document.getElementById(wrapId);
+  var container = wrap && wrap.parentElement ? wrap.parentElement : null;
+  var cw = container ? container.clientWidth : 0;
+  if(!cw) return 0;
+  var w = Math.floor((cw - fixedWidth) / dataColCount);
+  return w > 1 ? w : 1;
+}
+// 위에서 열 폭을 나눌 때 생기는 나머지(최대 열 수만큼의 px) 때문에 오른쪽에 몇 px 빈틈이 남을 수 있어,
+// 표 전체 폭을 창 폭까지 늘려 그 빈틈을 없앰(table-layout:fixed라 남는 폭은 열들이 나눠 가짐).
+function stretchTableWidth(wrapId, tableW){
+  var wrap = document.getElementById(wrapId);
+  var container = wrap && wrap.parentElement ? wrap.parentElement : null;
+  var cw = container ? container.clientWidth : 0;
+  return cw > tableW ? cw : tableW;
+}
 // 주간/월간은 화면 폭에 맞춰 줄이지 않고, 실제 라벨("8/3~8/9", "2026-08") 글자가 안 잘리는 최소 폭을 직접 측정해서 씀
 function measureMaxLabelWidth(cols){
   var probe = document.getElementById('_labelProbe');
@@ -793,7 +848,11 @@ function dataColWidthForMode(wrapId, cols, trailingCount){
     var fit = fitDataColWidth(wrapId, cols.length, trailingCount);
     return Math.max(fit, measured);
   }
-  return measured<GRID_DATA_MIN ? GRID_DATA_MIN : measured;
+  // 주간/월간은 라벨 기준 최소폭만 쓰던 탓에 열이 적으면 표가 창 왼쪽에만 붙어 우측이 빈 화면으로 남았음 —
+  // 이제는 열 수와 관계없이 창 폭을 열 수로 나눠 항상 오른쪽 끝까지 채운다(2026-08-11 요청).
+  var full = fillDataColWidth(wrapId, cols.length, GRID_LBL1_W+GRID_LBL2_W+GRID_TAIL_W*(trailingCount||1));
+  if(full) return full;
+  return measured<GRID_DATA_MIN ? GRID_DATA_MIN : measured;   // 탭이 숨겨져 폭을 못 잰 경우의 예비값
 }
 // 표 맨 첫 줄에 넣을 캡션 — 실제 표시되는 시작~끝 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시(한 달 안에 다 들어오면 한 번만)
 function periodCaptionText(cols){
@@ -864,6 +923,7 @@ function renderAttendanceTable(cols, renderCount){
   var groupRow = groupRowFor(cols, 1);
   var rowspan = groupRow ? 3 : 2;   // 캡션(1행)의 이름/직책 라벨 칸이 몇 행까지 병합돼야 하는지(구분 행 유무에 따라 2 또는 3)
   var tableW = gridTableWidth(cols.length,1,dataW);
+  if(viewMode!=='day') tableW = stretchTableWidth('attTableWrap', tableW);   // 주간/월간은 항상 창을 꽉 채움
   var cg = colGroupHtml(cols.length,1,dataW);
   // 일별 모드에서 기간이 길어 열이 VIRT_THRESHOLD를 넘으면 한 번에 다 그리지 않고 앞에서부터 VIRT_CHUNK개만 그림
   // (colgroup은 항상 cols.length 전체 기준이라 표/스크롤바 너비는 그대로 정확함 — 안 그려진 뒤쪽만 회색 처리).
@@ -892,6 +952,7 @@ function renderAttendanceTable(cols, renderCount){
   document.getElementById('attTableHead').innerHTML = headHtml;
   document.getElementById('attTableWrap').innerHTML = bodyHtml;
   bindHeaderSync(document.getElementById('attTableWrap'), 'att');
+  syncHeadClipGutter('attTableWrap');
   var allDays = cols.reduce(function(a,c){ return a.concat(c.days); },[]);
   // 표의 사람별 "합계" 행과 같은 정의(기본+연장+추가+주월차)로 더함 — 기본 출근만 세던 시절엔 이 숫자가
   // 표 합계나 공종별 A/F 합계와 달라 어느 쪽이 맞는지 헷갈렸음.
@@ -1039,6 +1100,7 @@ function renderPositionTable(cols, renderCount){
   var groupRow = groupRowFor(cols, 2);
   var rowspan = groupRow ? 3 : 2;
   var tableW = gridTableWidth(cols.length,2,dataW);
+  if(viewMode!=='day') tableW = stretchTableWidth('posTableWrap', tableW);   // 주간/월간은 항상 창을 꽉 채움
   var cg = colGroupHtml(cols.length,2,dataW);
   var virtualize = viewMode==='day' && cols.length>VIRT_THRESHOLD;   // renderAttendanceTable과 같은 가상 스크롤 방식
   var rc = virtualize ? Math.min(renderCount||VIRT_CHUNK, cols.length) : cols.length;
@@ -1100,6 +1162,7 @@ function renderPositionTable(cols, renderCount){
   document.getElementById('posTableHead').innerHTML = headHtml;
   document.getElementById('posTableWrap').innerHTML = html;
   bindHeaderSync(document.getElementById('posTableWrap'), 'pos');
+  syncHeadClipGutter('posTableWrap');
 }
 async function savePositionPlanQty(pos, val, monthStr){
   if(!positionPlanQty[monthStr]) positionPlanQty[monthStr] = {};
@@ -1125,8 +1188,11 @@ function renderMobilizationTable(){
   var months = (range.start && range.end) ? monthBucketsInRange(range.start, range.end) : [];
   // 칸 안에 계획인원 입력창(input.qi, 폭 56px 고정)이 들어가므로, 월 라벨("2026-03") 글자 폭뿐 아니라
   // 입력창+좌우 여백(padding 7px*2)도 넉넉히 들어가는 폭을 보장해야 함 — 라벨 기준 폭만 쓰면 입력창이 잘렸음(2026-08-07).
-  var dataW = months.length ? Math.max(measureMaxLabelWidth(months)+18, 56+18, GRID_DATA_MIN) : GRID_DATA_MIN;
-  var tableW = GRID_LBL1_W + months.length*dataW;
+  // 월 수와 관계없이 창 폭을 월 열 수로 나눠 항상 오른쪽 끝까지 채운다(2026-08-11 요청) —
+  // 폭을 못 잰 경우(탭이 숨겨진 상태)에만 라벨/입력창 기준 예비폭을 씀.
+  var dataW = fillDataColWidth('mobTableWrap', months.length, GRID_LBL1_W)
+    || (months.length ? Math.max(measureMaxLabelWidth(months)+18, 56+18, GRID_DATA_MIN) : GRID_DATA_MIN);
+  var tableW = stretchTableWidth('mobTableWrap', GRID_LBL1_W + months.length*dataW);
   var cg = mobColGroupHtml(months.length, dataW);
   function monthStrOf(c){ return c.days.length ? c.days[0].slice(0,7) : c.label; }
   var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
@@ -1159,6 +1225,7 @@ function renderMobilizationTable(){
   document.getElementById('mobTableHead').innerHTML = headHtml;
   document.getElementById('mobTableWrap').innerHTML = bodyHtml;
   bindHeaderSync(document.getElementById('mobTableWrap'));
+  syncHeadClipGutter('mobTableWrap');
 }
 
 // ---------- 근로자명단 ----------
