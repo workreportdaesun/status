@@ -226,7 +226,9 @@ if(isMobileDevice){
        안쪽 탭만 바꾼다(같은 도메인이라 showTab을 직접 부를 수 있음) — 두 개를 띄우면
        같은 데이터를 두 번 조회하게 된다. -->
   <button class="tab-btn" data-tab="prg" onclick="switchTab('prg')">공정률</button>
-  <button class="tab-btn" data-tab="chk" onclick="switchTab('chk')">CHECK LIST</button>
+  <!-- 화면 이름은 "체크리스트"로 통일(2026-08-12) — 작업일보 관리자 화면·공정관리 앱과 같다.
+       탭 키(data-tab="chk")와 iframe에 넘기는 값('check')은 코드 식별자라 그대로 둔다. -->
+  <button class="tab-btn" data-tab="chk" onclick="switchTab('chk')">체크리스트</button>
 </div>
 
 <div class="container">
@@ -355,7 +357,7 @@ if(isMobileDevice){
       <div class="embed-wrap">
         <iframe id="prgFrame" title="공정관리" style="width:100%; border:0; display:block; height:600px;"></iframe>
       </div>
-      <div class="note">공정률·CHECK LIST는 별도 앱(<a href="/progress/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)의 두 화면을 각각 탭으로 둔 것입니다 — 두 탭은 같은 화면 하나를 공유하므로 오갈 때 다시 불러오지 않습니다.</div>
+      <div class="note">공정률·체크리스트는 별도 앱(<a href="/progress/index.html" target="_blank" rel="noopener">따로 열기 ↗</a>)의 두 화면을 각각 탭으로 둔 것입니다 — 두 탭은 같은 화면 하나를 공유하므로 오갈 때 다시 불러오지 않습니다.</div>
     </div>
   </div>
 </div>
@@ -505,7 +507,7 @@ function switchTab(name){
   if(name==='mtl') openMaterialFrame();
   if(name==='prg' || name==='chk'){
     var t=document.getElementById('prgTitle');
-    if(t) t.textContent = (name==='chk') ? 'CHECK LIST' : '공정률';
+    if(t) t.textContent = (name==='chk') ? '체크리스트' : '공정률';
     openProgressFrame(name==='chk' ? 'check' : 'proc');
   }
   fitTableWrapHeight();
