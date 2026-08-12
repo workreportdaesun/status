@@ -66,13 +66,11 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
    세로 스크롤 컨테이너가 돼버림 — 그런데 높이를 안 정해주면 내용만큼 늘어나기만 하고 실제로는 이 안에서
    스크롤이 안 일어나서(페이지 자체가 스크롤됨) sticky 헤더가 아무 기준도 못 잡고 무용지물이었음.
    그래서 아예 높이를 제한해 진짜 이 박스 안에서 세로 스크롤이 일어나게 만들고, 그 기준으로 헤더를 고정시킴. */
-/* overflow-x:scroll(auto 아님)로 가로 스크롤바를 항상 그 자리에 고정해서 보이게 하고, max-height로 표 박스 자체를
-   화면 안에 가둬서(세로는 auto로 필요할 때만) 가로 스크롤바가 페이지 맨 아래가 아니라 표 바로 밑에 항상 있게 함. */
-.tablewrap{overflow-x:scroll; overflow-y:auto; max-height:70vh; border:1px solid var(--card-bd); border-radius:8px;}
-/* 물량소화계획 전용(2026-08-13 사용자 요청) — 이 표는 width:100%라 가로로 넘칠 일이 거의 없는데도 위의
-   overflow-x:scroll 때문에 빈 스크롤바가 항상 깔려 있었다. auto로 되돌려 필요할 때만 나오게 함.
-   위 공통 규칙은 근로자명단·공휴일 표도 같이 쓰므로 건드리지 않는다. */
-.tablewrap.tw-noxbar{overflow-x:auto;}
+/* max-height로 표 박스 자체를 화면 안에 가둬서, 가로 스크롤바가 페이지 맨 아래가 아니라 표 바로 밑에 생기게 함.
+   2026-08-13: 예전엔 overflow-x를 scroll로 박아 스크롤바 자리를 항상 잡아뒀는데(위치 고정 목적), 넘칠 일이 없는
+   표(물량소화계획·근로자명단·공휴일)에도 빈 스크롤바가 깔려 보기 나빴다. auto로 바꿔도 이 박스가 스크롤
+   컨테이너인 건 그대로라 스크롤바 위치는 여전히 표 바로 밑이다 — 필요할 때만 나올 뿐. */
+.tablewrap{overflow-x:auto; overflow-y:auto; max-height:70vh; border:1px solid var(--card-bd); border-radius:8px;}
 /* 삽입 탭(자재관리·공정률·CHECK LIST)의 화면 틀 — 표(.tablewrap)와 같은 테두리·모서리를 써서
    다른 탭과 서식을 맞춘다(2026-08-11 통일). */
 .embed-wrap{overflow:hidden; background:var(--card);}   /* 테두리는 안쪽 앱의 컨트롤·표가 이미 갖고 있다 —
@@ -83,7 +81,10 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
    가로 스크롤은 JS(bindHeaderSync)가 본문 스크롤량을 헤더에도 그대로 복사해서 두 표의 열을 맞춤. */
 .tablewrap.tw-split{display:flex; flex-direction:column; overflow:hidden; max-height:70vh;}
 .tw-head-clip{overflow:hidden; flex:0 0 auto;}
-.tw-body-scroll{overflow-x:scroll; overflow-y:auto; flex:1 1 auto;}
+/* 2026-08-13: 여기도 scroll -> auto. 일별 모드처럼 기간이 길면 어차피 넘쳐서 스크롤바가 나오고,
+   월별/주간처럼 열이 적어 다 들어가는 경우에만 사라진다. 헤더 열맞춤은 bindHeaderSync가 본문의
+   scrollLeft를 복사하는 방식이라(스크롤바 유무와 무관) 그대로 동작한다. */
+.tw-body-scroll{overflow-x:auto; overflow-y:auto; flex:1 1 auto;}
 /* border-collapse:collapse는 브라우저가 th/td의 position:sticky를 아예 무시하게 만듦(다른 자매 앱에서 이미
    확인된 문제) — sticky 헤더가 작동하려면 반드시 separate여야 함. */
 table.dt{border-collapse:separate; border-spacing:0; width:100%; font-size:12px; white-space:nowrap;}
@@ -321,7 +322,7 @@ if(isMobileDevice){
              채워지므로(loadMaterialPlan) 수동 버튼이 없어도 복구된다. -->
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
       </div>
-      <div class="tablewrap tw-noxbar"><table class="dt" id="matTable" style="width:100%;">
+      <div class="tablewrap"><table class="dt" id="matTable" style="width:100%;">
         <thead><tr>
           <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
           <th>계약물량</th><th>작업일수<br>(DAY)</th><th>시공물량<br>(/DAY)</th>
