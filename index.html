@@ -283,7 +283,13 @@ if(isMobileDevice){
   <div class="tab-panel" id="panel-mem">
     <div class="card">
       <h2>근로자명단</h2>
-      <div class="toolbar"><span style="font-size:12px;color:var(--lbl);" id="memCount"></span></div>
+      <!-- 총인원 텍스트는 검색바 오른쪽 끝으로 보낸다(margin-left:auto) — 2026-08-12 요청 -->
+      <div class="toolbar">
+        <input type="search" id="memSearch" class="f" style="width:280px;font-family:var(--font-body);"
+               placeholder="성명·직책·전화번호·공종·작업분류·AREA·소속 검색" oninput="renderMembersTab()">
+        <button class="btn sm ghost" onclick="clearMemSearch()">지우기</button>
+        <span style="font-size:12px;color:var(--lbl);margin-left:auto;" id="memCount"></span>
+      </div>
       <div class="tablewrap"><div id="memTableWrap">불러오는 중...</div></div>
       <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 직책·작업분류·소속 수정은 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요.</div>
     </div>
@@ -1607,15 +1613,34 @@ function renderMobilizationTable(){
 }
 
 // ---------- 근로자명단 ----------
+/* 검색은 표에 보이는 값(성명·직책·전화번호·공종·작업분류·AREA·소속)을 그대로 이어붙여
+   부분일치로 찾는다 — 열을 따로 고르게 하지 않아도 "홍길동", "계장공", "1팀", "0100" 아무거나
+   치면 걸린다. 전화번호는 하이픈을 빼고도 찾을 수 있게 숫자만 남긴 형태도 같이 넣는다. */
+function memberSearchText(m){
+  return [m.name, m.position, m.phone, String(m.phone||'').replace(/\D/g,''), m.menu, m.cat, m.area, m.team]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+function clearMemSearch(){
+  var el = document.getElementById('memSearch');
+  if(el) el.value = '';
+  renderMembersTab();
+}
 function renderMembersTab(){
-  document.getElementById('memCount').textContent = '총 '+membersList.length+'명';
-  var rows = membersSorted().map(function(m,i){
+  var qEl = document.getElementById('memSearch');
+  var q = (qEl ? qEl.value : '').trim().toLowerCase();
+  var all = membersSorted();
+  var list = q ? all.filter(function(m){ return memberSearchText(m).indexOf(q)!==-1; }) : all;
+  // 총인원은 항상 명단 전체 기준으로 보여주고, 검색 중일 때만 걸린 수를 앞에 덧붙인다.
+  document.getElementById('memCount').textContent =
+    q ? ('검색 '+list.length+'명 / 총 '+all.length+'명') : ('총 '+all.length+'명');
+  var rows = list.map(function(m,i){
     return '<tr><td>'+(i+1)+'</td><td style="text-align:left;">'+esc(m.name)+'</td><td>'+esc(m.position||'')+'</td>'
       +'<td>'+esc(m.phone||'')+'</td><td>'+esc(m.menu||'')+'</td><td>'+esc(m.cat||'')+'</td>'
       +'<td>'+esc(m.area||'')+'</td><td>'+esc(m.team||'')+'</td>'
       +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td>'
       +'<td><span class="badge '+(m.active===false?'err':'ok')+'">'+(m.active===false?'퇴사':'재직')+'</span></td></tr>';
   }).join('');
+  if(!rows) rows = '<tr><td colspan="10" style="text-align:center;color:var(--lbl);padding:18px;">검색 결과가 없습니다</td></tr>';
   document.getElementById('memTableWrap').innerHTML =
     '<table class="dt"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th><th>근무여부</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
