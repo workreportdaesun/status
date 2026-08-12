@@ -186,12 +186,17 @@ table.dt td input.txi{width:90px; border:1px solid var(--field-bd); border-radiu
 </div>
 <div id="appRoot">
 <script>
-var isMobileDevice = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
+/* iPadOS 13부터 아이패드는 UA를 "Macintosh"로 보내서 예전 정규식만으로는 PC로 통과했다 —
+   터치 지원 여부를 같이 봐서 걸러낸다(2026-08-12). */
+var isMobileDevice = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
+  || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 if(isMobileDevice){
   document.getElementById('pcOnlyBlock').style.display='flex';
   document.getElementById('appRoot').style.display='none';
 }else{
-  var _ags=document.createElement('script'); _ags.src='admin-gate.js'; document.head.appendChild(_ags);
+  /* 관리자 암호 게이트는 report 저장소의 원본 하나만 쓴다 — 여기 복사본을 두면 암호를 바꿀 때
+     이 앱만 옛 암호로 남는다(자재관리/progress는 이미 report 원본을 부르고 있었다). */
+  var _ags=document.createElement('script'); _ags.src='/report/admin-gate.js'; document.head.appendChild(_ags);
 }
 </script>
 <div class="app-header">
@@ -296,7 +301,7 @@ if(isMobileDevice){
         <thead><tr>
           <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
           <th>계약물량</th><th>작업일수<br>(DAY)</th><th>시공물량<br>(/DAY)</th>
-          <th>1인시공물량<br>(/DAY)</th><th>투입인력<br>(DAY)</th><th>예상<br>총투입인원</th><th>비고</th>
+          <th>1인시공물량<br>(/DAY)</th><th>투입인력<br>(DAY)</th><th>예상<br>총투입인원</th><th>비고</th><th></th>
         </tr></thead>
         <tbody id="matBody"></tbody>
       </table></div>
@@ -377,16 +382,25 @@ var SUPABASE_URL='https://feymoykefzfwucbrqoja.supabase.co';
 var SUPABASE_KEY='sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-if(!isMobileDevice && !localStorage.getItem('member_id')){ location.href='login.html'; }
+// replace를 쓰면 로그인 화면에서 뒤로가기를 눌러도 이 페이지로 되돌아왔다가 다시 튕기는 왕복이 없다.
+if(!isMobileDevice && !localStorage.getItem('member_id')){ location.replace('login.html'); }
 
 var MGMT_POSITIONS=['운영관리자','현장소장','공무부장','공무과장','공사부장','공사차장','품질차장','품질과장','자재과장','안전차장','안관관리','공구장','대리','기사'];
 var FIELD_POSITIONS=['팀장','계장공','전공','조공','결선공','케이블공','LOOP','비계공','화기감시자','유도원','신호수','계기교정','기타'];
 
 var FIXED_HOLIDAYS_MMDD=[
   {md:'01-01',name:'신정'},{md:'03-01',name:'3\u00b71\uc808'},{md:'05-05',name:'\uc5b4\ub9b0\uc774\ub0a0'},
-  {md:'06-06',name:'\ud604\ucda9\uc77c'},{md:'08-15',name:'\uad11\ubcf5\uc808'},{md:'10-03',name:'\uac1c\ucc9c\uc808'},
-  {md:'10-09',name:'\ud55c\uae00\ub0a0'},{md:'12-25',name:'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4'}
+  {md:'06-06',name:'\ud604\ucda9\uc77c'},{md:'07-17',name:'\uc81c\ud5cc\uc808'},{md:'08-15',name:'\uad11\ubcf5\uc808'},
+  {md:'10-03',name:'\uac1c\ucc9c\uc808'},{md:'10-09',name:'\ud55c\uae00\ub0a0'},{md:'12-25',name:'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4'}
 ];
+/* 해마다 날짜가 달라지는 것들(음력 명절·부처님오신날·대체공휴일·선거일)만 연도별로 적어둔다.
+   ⚠️ 2026-08-12까지 2027년 칸에 2026년 날짜가 그대로 복사돼 있었다(설날 2/16, 추석 9/24,
+      있지도 않은 지방선거 6/3 등 전부 오답) — 근무일 판정이 틀어져 주/월차 자동계산·공종별
+      계획(P)·물량소화계획 작업일수가 다 같이 어긋났다. 실제 날짜로 교체하고 2028년을 추가함.
+   대체공휴일은 3·1절/제헌절/광복절/개천절/한글날/어린이날/부처님오신날/성탄절과 설날·추석
+   연휴가 주말(설·추석 연휴는 일요일만)이나 다른 공휴일과 겹칠 때만 생긴다 — 신정과 현충일은
+   대상이 아니다(2027-06-06 현충일은 일요일이지만 대체공휴일 없음).
+   ※ 여기 없는 연도는 아래 holidayDataWarning()이 화면 위에 경고를 띄운다. */
 var DEFAULT_HOLIDAYS_EXTRA={
   "2026":[
     {date:'2026-02-16',name:'설날'},{date:'2026-02-17',name:'설날'},{date:'2026-02-18',name:'설날'},
@@ -398,13 +412,22 @@ var DEFAULT_HOLIDAYS_EXTRA={
     {date:'2026-10-05',name:'대체공휴일'}
   ],
   "2027":[
-    {date:'2027-02-16',name:'설날'},{date:'2027-02-17',name:'설날'},{date:'2027-02-18',name:'설날'},
-    {date:'2027-03-02',name:'대체공휴일'},
-    {date:'2027-05-24',name:'부처님오신날'},{date:'2027-05-25',name:'대체공휴일'},
-    {date:'2027-06-03',name:'지방선거'},
-    {date:'2027-08-17',name:'대체공휴일'},
-    {date:'2027-09-24',name:'추석'},{date:'2027-09-25',name:'추석'},{date:'2027-09-26',name:'추석'},
-    {date:'2027-10-05',name:'대체공휴일'}
+    {date:'2027-02-06',name:'설날'},{date:'2027-02-07',name:'설날'},{date:'2027-02-08',name:'설날'},
+    {date:'2027-02-09',name:'대체공휴일(설날)'},
+    {date:'2027-05-13',name:'부처님오신날'},
+    {date:'2027-07-19',name:'대체공휴일(제헌절)'},
+    {date:'2027-08-16',name:'대체공휴일(광복절)'},
+    {date:'2027-09-14',name:'추석'},{date:'2027-09-15',name:'추석'},{date:'2027-09-16',name:'추석'},
+    {date:'2027-10-04',name:'대체공휴일(개천절)'},
+    {date:'2027-10-11',name:'대체공휴일(한글날)'},
+    {date:'2027-12-27',name:'대체공휴일(성탄절)'}
+  ],
+  "2028":[
+    {date:'2028-01-26',name:'설날'},{date:'2028-01-27',name:'설날'},{date:'2028-01-28',name:'설날'},
+    {date:'2028-04-12',name:'국회의원선거'},
+    {date:'2028-05-02',name:'부처님오신날'},
+    {date:'2028-10-02',name:'추석'},{date:'2028-10-03',name:'추석'},{date:'2028-10-04',name:'추석'},
+    {date:'2028-10-05',name:'대체공휴일(개천절)'}
   ]
 };
 // 물량소화계획의 DESCRIPTION(=작업일보의 "작업분류")은 작업일보 앱(work-report-daesun)이 쓰는 것과 같은
@@ -622,12 +645,20 @@ function monthDays(monthStr){
   for(var d=1; d<=n; d++){ arr.push(y+'-'+pad(m)+'-'+pad(d)); }
   return arr;
 }
+/* 무한 루프를 막는 가드는 원래 함수마다 제각각이었다(일 3000 / 주 300 / 월 60) — 서버 조회
+   범위는 월 버킷(60개월=5년)으로 만드는데 화면 열은 일 단위(3000일≈8.2년)로 만들다 보니,
+   기간을 5년 넘게 잡으면 61개월째부터는 열은 그려지는데 데이터를 아예 안 받아와서 전원이
+   결근으로 보였다. 경고도 없었다. 이제 상한을 한 곳에서 정하고 전부 여기서 파생시킨다.
+   상한을 넘는 기간은 renderMigBanner가 경고로 알린다(2026-08-12). */
+var MAX_RANGE_MONTHS=120;                                  // 10년
+var MAX_RANGE_DAYS=Math.ceil(MAX_RANGE_MONTHS*31.0);       // 월 가드보다 항상 넉넉하게
+var MAX_RANGE_WEEKS=Math.ceil(MAX_RANGE_DAYS/7)+1;
 function rangeDays(startStr, endStr){
   var out=[];
   if(!startStr || !endStr) return out;
   var d=new Date(startStr+'T00:00:00'), end=new Date(endStr+'T00:00:00');
   var guard=0;
-  while(d<=end && guard<3000){
+  while(d<=end && guard<MAX_RANGE_DAYS){
     guard++;
     out.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));
     d.setDate(d.getDate()+1);
@@ -665,7 +696,7 @@ function weekBucketsInRange(startStr, endStr){
   var endDate = new Date(endStr+'T00:00:00');
   var buckets=[];
   var guard=0;
-  while(cur<=endDate && guard<300){
+  while(cur<=endDate && guard<MAX_RANGE_WEEKS){
     guard++;
     var wdays=[];
     for(var i=0;i<7;i++){ var d=new Date(cur); d.setDate(cur.getDate()+i); wdays.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())); }
@@ -690,7 +721,7 @@ function monthBucketsInRange(startStr, endStr){
   var ey=+endStr.slice(0,4), em=+endStr.slice(5,7);
   var buckets=[];
   var guard=0;
-  while((y<ey || (y===ey && m<=em)) && guard<60){
+  while((y<ey || (y===ey && m<=em)) && guard<MAX_RANGE_MONTHS){
     guard++;
     var ms=y+'-'+pad(m);
     buckets.push({days:monthDays(ms), label:ms, cls:''});
@@ -712,7 +743,7 @@ function monthsInReportRange(){
   if(!r.start || !r.end) return [];
   var out=[], y=+r.start.slice(0,4), m=+r.start.slice(5,7);
   var ey=+r.end.slice(0,4), em=+r.end.slice(5,7), guard=0;
-  while((y<ey || (y===ey && m<=em)) && guard++<600){
+  while((y<ey || (y===ey && m<=em)) && guard++<MAX_RANGE_MONTHS){
     out.push(y+'-'+pad(m));
     m++; if(m>12){ m=1; y++; }
   }
@@ -728,12 +759,25 @@ function ensureDayMonth(){
   }
   return list;
 }
+/* buildColumns는 결과를 캐시한다. 가로 스크롤 핸들러(maybeGrowVirtualTable)가 스크롤 틱마다
+   이걸 부르는데, 안에서 rangeDays가 예상 시작일~완료일 전체를 하루씩 훑으며 Date를 만든다 —
+   기본 2년이면 스크롤 한 번에 730개씩 만들고 버리느라 스크롤이 눈에 띄게 버벅였다(2026-08-12).
+   결과가 달라지는 조건(보기 모드·보고 있는 달·기간·공휴일 변경)만 키로 잡으면 안전하다. */
+var _colsCache=null, _colsCacheKey='', _holVersion=0;
+function invalidateHolidays(){ _holCache={}; _holVersion++; _colsCache=null; }
 function buildColumns(){
   var range = reportRange();
+  if(viewMode==='day') ensureDayMonth();   // dayMonth가 키에 들어가므로 키를 만들기 전에 확정
+  var key = viewMode+'|'+dayMonth+'|'+range.start+'|'+range.end+'|'+_holVersion;
+  if(_colsCache && _colsCacheKey===key) return _colsCache;
+  _colsCacheKey = key;
+  _colsCache = buildColumnsUncached(range);
+  return _colsCache;
+}
+function buildColumnsUncached(range){
   if(viewMode==='week') return weekBucketsInRange(range.start, range.end);
   if(viewMode==='month') return monthBucketsInRange(range.start, range.end);
   var days = rangeDays(range.start, range.end);
-  ensureDayMonth();
   if(dayMonth) days = days.filter(function(d){ return d.slice(0,7)===dayMonth; });
   var crossMonth = days.length && days[0].slice(0,7)!==days[days.length-1].slice(0,7);
   return days.map(function(d){
@@ -856,6 +900,7 @@ async function loadAppSettings(){
   if(res.error){ showToast('설정을 불러오지 못했습니다','var(--err)'); return; }
   appSettings = res.data || {};
   holidaysExtra = appSettings.holidays_extra || {};
+  invalidateHolidays();   // 서버에서 받은 공휴일로 바뀌었으니 날짜 판정·열 캐시를 버린다
   positionPlanQty = appSettings.position_plan_qty || {};
   materialPlan = Array.isArray(appSettings.material_plan) ? appSettings.material_plan : null;
   if(appSettings.material_plan === undefined) matColumnOk = false;
@@ -882,7 +927,10 @@ async function onReportRangeInput(which, v){
   loadPeriodData();
 }
 async function loadMembers(){
-  var res = await sb.from('members').select('id,name,position,cat,menu,team,area,phone,active,created_at').order('name');
+  var res = await fetchAllRows(function(){
+    // 정렬 기준을 name 하나로 두면 동명이인 순서가 페이지마다 달라질 수 있어 id를 같이 준다.
+    return sb.from('members').select('id,name,position,cat,menu,team,area,phone,active,created_at').order('name').order('id');
+  });
   if(res.error){ showToast('명단을 불러오지 못했습니다','var(--err)'); return; }
   membersList = (res.data||[]).filter(function(m){ return m.active !== false; });
   renderMigBanner();
@@ -896,13 +944,42 @@ function applyReportRows(rows){
       var cur = attByMemberDate[c.member_id][row.date] || {};
       if(c.checkInAt) cur.checkIn = true;
       if(c.overtimeCheckAt) cur.overtime = true;
+      /* 이 기록이 실제로 어느 팀 행(daily_reports.id = "팀_날짜")에 들어 있는지 같이 기억해둔다.
+         출퇴근 앱은 로그인 당시의 localStorage.member_team으로 행을 만드는데 여기서는 members
+         테이블의 현재 team을 쓰므로, 관리자가 소속을 바꾸고 본인이 재로그인하기 전이면 둘이
+         달라진다 — 그때 toggleCrew가 엉뚱한 행을 건드려서 "출근 해제가 안 먹고 새로고침하면
+         되살아나는" 문제가 있었다(2026-08-12). 기록이 있는 행을 그대로 따라가게 한다.
+         기존 기록이 있는 행을 우선하고, 빈 항목만 있는 행으로는 덮어쓰지 않는다. */
+      if((c.checkInAt || c.overtimeCheckAt) || !cur.team) cur.team = row.team;
       attByMemberDate[c.member_id][row.date] = cur;
     });
   });
 }
+/* PostgREST는 한 번에 최대 1000행만 돌려준다(에러가 아니라 그냥 잘려서 온다). 예상 시작일~
+   완료일이 기본 2년이라 daily_reports는 팀 수 × 730일이고 attendance_manual은 인원 × 날짜라,
+   조금만 쌓여도 뒷날짜가 통째로 "기록 없음"이 되어 결근으로 계산됐다 — 주/월차 개근 판정과
+   공종별 A/F가 조용히 틀리는 원인이라 반드시 끝까지 받아와야 한다(2026-08-12).
+   1000행씩 끊어서 마지막 페이지(받은 행 수 < PAGE)가 나올 때까지 이어 받는다. */
+var PAGE_SIZE = 1000;
+async function fetchAllRows(build){
+  var out = [], from = 0;
+  for(var guard=0; guard<200; guard++){
+    var res = await build().range(from, from+PAGE_SIZE-1);
+    if(res.error) return {error:res.error, data:out};
+    var rows = res.data || [];
+    out = out.concat(rows);
+    if(rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return {error:null, data:out};
+}
 async function applyManualRows(start, end){
   manualByKey = {};
-  var mres = await sb.from('attendance_manual').select('member_id,date,extra,leave').gte('date',start).lte('date',end);
+  var mres = await fetchAllRows(function(){
+    // 페이지를 끊어 받으므로 정렬이 유일하게 결정돼야 한다(PK 두 컬럼 다 지정) — date만으로
+    // 정렬하면 같은 날짜 행들의 순서가 페이지마다 달라져 일부가 빠지거나 겹칠 수 있다.
+    return sb.from('attendance_manual').select('member_id,date,extra,leave').gte('date',start).lte('date',end).order('date').order('member_id');
+  });
   if(mres.error){
     manualTableOk = false;
   } else {
@@ -920,8 +997,11 @@ async function loadPeriodData(){
   var allDays = fetchCols.reduce(function(a,c){ return a.concat(c.days); },[]);
   if(allDays.length){
     var start = allDays[0], end = allDays[allDays.length-1];
-    var res = await sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end);
-    if(!res.error) applyReportRows(res.data);
+    var res = await fetchAllRows(function(){
+      return sb.from('daily_reports').select('team,date,crew').gte('date',start).lte('date',end).order('date').order('team');
+    });
+    if(res.error) showToast('⚠️ 출력 기록을 다 불러오지 못했습니다: '+res.error.message,'var(--err)');
+    applyReportRows(res.data);   // 중간에 실패해도 받아온 데까지는 반영
     await applyManualRows(start, end);
   } else {
     manualByKey = {};
@@ -936,8 +1016,40 @@ async function loadPeriodData(){
   fitTableWrapHeight();
 }
 
+/* 예상 시작일~완료일이 걸치는 연도 중 음력 명절·대체공휴일 데이터가 아예 없는 해를 찾는다.
+   이게 없으면 그런 해는 설날·추석이 통째로 평일로 잡히는데 화면 어디에도 티가 안 나서,
+   주/월차와 작업일수가 조용히 틀린 채로 굴러간다(2027년 오답이 오래 안 걸린 이유). */
+function holidayDataWarning(){
+  var r = reportRange();
+  if(!r.start || !r.end) return '';
+  var missing = [];
+  for(var y=+r.start.slice(0,4); y<=+r.end.slice(0,4); y++){
+    var k = String(y);
+    var saved = holidaysExtra[k];
+    if((saved && saved.length) || (DEFAULT_HOLIDAYS_EXTRA[k] || []).length) continue;
+    missing.push(k);
+  }
+  if(!missing.length) return '';
+  return '<b>'+missing.join('·')+'년</b>의 설날·추석·부처님오신날·대체공휴일이 등록돼 있지 않습니다. '
+    + '지금 이 해의 명절은 <b>전부 평일(근무일)로 계산</b>되고 있어서 주/월차 자동계산, 공종별 계획(P), '
+    + '물량소화계획 작업일수가 실제와 다릅니다. 헤더의 <b>⚙️ 설정 &gt; 공휴일</b>에서 해당 연도를 골라 추가한 뒤 저장해주세요.';
+}
+/* 예상 시작일~완료일이 상한(MAX_RANGE_MONTHS)을 넘으면 뒤쪽이 잘려서 보인다 — 조용히 자르지
+   말고 얼마나 잘렸는지 알려준다. */
+function rangeCapWarning(){
+  var r = reportRange();
+  if(!r.start || !r.end) return '';
+  var months = (+r.end.slice(0,4)-+r.start.slice(0,4))*12 + (+r.end.slice(5,7)-+r.start.slice(5,7)) + 1;
+  if(months <= MAX_RANGE_MONTHS) return '';
+  return '예상 시작일~완료일이 <b>'+months+'개월</b>로 이 화면의 상한(' + MAX_RANGE_MONTHS + '개월)을 넘습니다. '
+    + '<b>앞에서 '+MAX_RANGE_MONTHS+'개월치만 표시·집계</b>되고 그 뒤는 화면에서 빠집니다 — 기간을 줄여서 나눠 보세요.';
+}
 function renderMigBanner(){
   var msgs=[];
+  var capWarn = rangeCapWarning();
+  if(capWarn) msgs.push(capWarn);
+  var holWarn = holidayDataWarning();
+  if(holWarn) msgs.push(holWarn);
   if(!manualTableOk){
     msgs.push('<b>attendance_manual</b> 테이블이 없어 "추가/주월차" 수동입력이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.<pre>CREATE TABLE IF NOT EXISTS attendance_manual (\n  member_id text NOT NULL,\n  date date NOT NULL,\n  extra int DEFAULT 0,\n  leave int DEFAULT 0,\n  PRIMARY KEY (member_id, date)\n);\nALTER TABLE attendance_manual ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "public access" ON attendance_manual FOR ALL USING (true) WITH CHECK (true);</pre>');
   }
@@ -964,7 +1076,9 @@ function membersSorted(){
 // cols: [{days:[...], label, cls, title}] — 일별 모드는 1일짜리 col, 주간/월간 모드는 여러 날을 합산하는 col
 function colHeadHtml(cols){
   return cols.map(function(c){
-    return '<th class="'+(c.cls||'')+'" title="'+(c.title||'')+'">'+c.label+'</th>';
+    // title은 공휴일 명칭(관리자가 ⚙️설정에서 직접 입력)이 들어오는 자리라 반드시 이스케이프해야
+    // 한다 — 따옴표가 들어가면 속성이 끊겨 표 헤더가 통째로 깨졌다(2026-08-12).
+    return '<th class="'+(c.cls||'')+'" title="'+esc(c.title||'')+'">'+esc(c.label)+'</th>';
   }).join('');
 }
 // 열마다 고정폭을 주는 colgroup — 같은 표 안에서는 데이터 열 폭이 항상 같도록(라벨2칸+데이터n칸+꼬리n칸)
@@ -1107,8 +1221,9 @@ function groupRowFor(cols, trailingCount){
   return '';
 }
 function renderAttendanceTable(cols, renderCount){
-  var mgmt = membersSorted().filter(function(m){ return positionGroup(m.position)==='mgmt'; });
-  var field = membersSorted().filter(function(m){ return positionGroup(m.position)==='field'; });
+  var sorted = membersSorted();   // 예전엔 두 번 불러서 매 렌더마다 전체 명단을 두 번 정렬했다
+  var mgmt = sorted.filter(function(m){ return positionGroup(m.position)==='mgmt'; });
+  var field = sorted.filter(function(m){ return positionGroup(m.position)==='field'; });
   var dataW = dataColWidthForMode('attTableWrap', cols, 1);
   var groupRow = groupRowFor(cols, 1);
   var rowspan = groupRow ? 3 : 2;   // 캡션(1행)의 이름/직책 라벨 칸이 몇 행까지 병합돼야 하는지(구분 행 유무에 따라 2 또는 3)
@@ -1208,8 +1323,10 @@ function memberBlockHtml(m, cols, visCols, hiddenBody){
 async function toggleCrew(memberId, dateStr, field){
   var m = membersList.find(function(x){ return x.id===memberId; });
   if(!m){ showToast('⚠️ 근로자 명단에서 찾을 수 없습니다','var(--err)'); return; }
-  var team = m.team || '미지정';
   var rec = (attByMemberDate[memberId] || {})[dateStr] || {};
+  // 이미 기록이 있으면 그 기록이 들어 있는 팀 행을 그대로 쓴다(applyReportRows의 rec.team 주석 참고).
+  // 처음 넣는 경우에만 members 테이블의 현재 소속으로 새 행을 만든다.
+  var team = rec.team || m.team || '미지정';
   var on = field==='checkIn' ? !!rec.checkIn : !!rec.overtime;
   var atKey = field==='checkIn' ? 'checkInAt' : 'overtimeCheckAt';
   var byKey = field==='checkIn' ? 'checkInBy' : 'overtimeBy';
@@ -1225,6 +1342,7 @@ async function toggleCrew(memberId, dateStr, field){
   if(!attByMemberDate[memberId]) attByMemberDate[memberId] = {};
   var cur = Object.assign({}, attByMemberDate[memberId][dateStr] || {});
   if(field==='checkIn') cur.checkIn = !on; else cur.overtime = !on;
+  cur.team = team;   // 같은 세션에서 다시 눌러도 방금 쓴 행을 계속 따라가게 한다
   attByMemberDate[memberId][dateStr] = cur;
   autoLeaveByMember = buildAutoLeave();   // 출근이 바뀌면 주/월차 개근 판정도 달라진다
   var cols = buildColumns();
@@ -1392,7 +1510,7 @@ function renderPositionTable(cols, renderCount){
       + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
   }
   if(!cols.length){
-    html += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
+    html += '<tr><td colspan="4" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';   // 이 표는 라벨2+합계+달성률 = 4칸
   } else {
     html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">간접인원</span></td></tr>';
     MGMT_POSITIONS.forEach(function(pos){ html += posRowHtml(pos); });
@@ -1491,6 +1609,10 @@ function ensureHolidayYearOptions(){
   Object.keys(DEFAULT_HOLIDAYS_EXTRA).forEach(function(y){ years[y]=1; });
   var curYear = todayStr().slice(0,4);
   years[curYear]=1; years[+curYear+1]=1;
+  // 예상 시작일~완료일이 걸치는 해는 전부 고를 수 있어야 한다 — 데이터가 없는 해를 경고
+  // (holidayDataWarning)해놓고 정작 그 해를 선택할 수 없으면 고칠 방법이 없다.
+  var r = reportRange();
+  if(r.start && r.end){ for(var y=+r.start.slice(0,4); y<=+r.end.slice(0,4); y++) years[y]=1; }
   var list = Object.keys(years).sort();
   var cur = sel.value;
   sel.innerHTML = list.map(function(y){ return '<option>'+y+'</option>'; }).join('');
@@ -1502,28 +1624,51 @@ function renderHolidayTable(){
   var fixed = fixedHolidaysForYear(year).map(function(h){ return Object.assign({fixed:true},h); });
   var extra = (holidaysExtra[year] || DEFAULT_HOLIDAYS_EXTRA[year] || []).map(function(h){ return Object.assign({fixed:false},h); });
   var all = fixed.concat(extra).sort(function(a,b){ return a.date<b.date?-1:1; });
+  /* 삭제 버튼은 onclick 문자열이 아니라 data-* + 위임 처리로 만든다. 예전엔 명칭을 JS 문자열
+     리터럴 안에 끼워 넣었는데, esc()가 '를 &#39;로 바꿔도 HTML 속성 파서가 그걸 다시 '로
+     되돌려 놓기 때문에 따옴표가 든 명칭이면 버튼이 통째로 깨졌다(2026-08-12). */
   var rows = all.map(function(h,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+h.date+'</td><td>'+esc(h.name)+'</td>'
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(h.date)+'</td><td>'+esc(h.name)+'</td>'
       +'<td>'+(h.fixed?'<span class="badge ok">자동</span>':'<span class="badge warn">수동</span>')+'</td>'
-      +'<td>'+(h.fixed?'':'<button class="btn sm danger" onclick="deleteHoliday(\''+year+'\',\''+h.date+'\',\''+esc(h.name).replace(/'/g,"\\'")+'\')">삭제</button>')+'</td></tr>';
+      +'<td>'+(h.fixed?'':'<button type="button" class="btn sm danger hol-del" data-year="'+esc(year)+'" data-date="'+esc(h.date)+'" data-name="'+esc(h.name)+'">삭제</button>')+'</td></tr>';
   }).join('');
   document.getElementById('holBody').innerHTML = rows || '<tr><td colspan="5">등록된 공휴일이 없습니다</td></tr>';
+}
+document.getElementById('holBody').addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.hol-del') : null;
+  if(!btn) return;
+  deleteHoliday(btn.dataset.year, btn.dataset.date, btn.dataset.name);
+});
+/* 입력한 날짜가 실제로 존재하는 YYYY-MM-DD인지 확인한다. 예전엔 prompt 결과를 그대로 저장해서
+   "2027-9-24"나 "2027-02-31" 같은 값이 목록에는 보이는데 근무일 계산에는 전혀 안 잡혔다 —
+   holidayNameForDate가 'YYYY-MM-DD' 정확 일치로만 찾기 때문. 왜 안 먹는지 알 방법이 없었다. */
+function isValidDateStr(s){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  var d = new Date(s+'T00:00:00');
+  return !isNaN(d) && d.getFullYear()===+s.slice(0,4) && d.getMonth()+1===+s.slice(5,7) && d.getDate()===+s.slice(8,10);
 }
 function addCustomHoliday(){
   var year = document.getElementById('holYear').value;
   var date = prompt(year+'년 공휴일 날짜를 입력하세요 (예: '+year+'-09-24)', year+'-01-01');
-  if(!date) return;
+  if(date===null) return;
+  date = (date||'').trim();
+  if(!isValidDateStr(date)){ showToast('⚠️ 날짜는 '+year+'-09-24 형식으로 입력해주세요','var(--err)'); return; }
+  if(date.slice(0,4)!==year){ showToast('⚠️ '+year+'년 날짜가 아닙니다 (입력: '+date+')','var(--err)'); return; }
   var name = prompt('공휴일 명칭을 입력하세요', '임시공휴일');
-  if(!name) return;
+  if(name===null) return;
+  name = (name||'').trim();
+  if(!name){ showToast('⚠️ 명칭을 입력해주세요','var(--err)'); return; }
   if(!holidaysExtra[year]) holidaysExtra[year] = (DEFAULT_HOLIDAYS_EXTRA[year]||[]).slice();
+  if(holidaysExtra[year].some(function(h){ return h.date===date; })){ showToast('⚠️ 이미 등록된 날짜입니다','var(--err)'); return; }
   holidaysExtra[year].push({date:date, name:name});
-  _holCache={};
+  holidaysExtra[year].sort(function(a,b){ return a.date<b.date?-1:1; });
+  invalidateHolidays();
   renderHolidayTable();
 }
 function deleteHoliday(year, date, name){
   if(!holidaysExtra[year]) holidaysExtra[year] = (DEFAULT_HOLIDAYS_EXTRA[year]||[]).slice();
   holidaysExtra[year] = holidaysExtra[year].filter(function(h){ return !(h.date===date && h.name===name); });
-  _holCache={};
+  invalidateHolidays();
   renderHolidayTable();
 }
 async function saveHolidaysExtra(){
@@ -1543,7 +1688,9 @@ function networkDaysExclHolidays(startStr, endStr){
     if(!isNonWorkDay(ds)) cnt++;
     d.setDate(d.getDate()+1);
   }
-  return cnt-1;   // 원본 엑셀 수식 =NETWORKDAYS(시작,종료,공휴일)-1 과 동일하게 맞춤(착공일 1일을 빼는 방식)
+  // 원본 엑셀 수식 =NETWORKDAYS(시작,종료,공휴일)-1 과 동일(착공일 1일을 빼는 방식).
+  // 구간에 근무일이 하나도 없으면 -1이 되어 표에 음수가 찍혔으므로 0에서 끊는다(2026-08-12).
+  return Math.max(0, cnt-1);
 }
 // 선택한 달의 1일부터 (years*12-1)개월 뒤 말일까지, 기본 구간을 계산(기본 2년)
 function defaultPlanRangeFromMonth(monthStr, years){
@@ -1569,6 +1716,7 @@ function newMaterialRow(catName, range, planQty){
   };
 }
 function loadMaterialPlan(forceReseed){
+  materialSeeded = true;
   var monthStr = (appSettings.report_start_date||'').slice(0,7) || todayStr().slice(0,7);
   var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
   var planQty = appSettings.plan_qty || {};
@@ -1590,9 +1738,18 @@ function loadMaterialPlan(forceReseed){
   renderMaterialTable();
   showToast('작업일보 작업분류 목록으로 채웠습니다(기본 기간 2년). 저장을 눌러 반영하세요','var(--brand-2)');
 }
+/* 비어 있을 때 자동으로 기본목록을 채우는 건 "처음 열었을 때" 한 번뿐이어야 한다. 예전엔
+   renderMaterialTable이 무조건 다시 채워서, 마지막 행을 지우면 곧바로 전체가 되살아났다.
+   (sikongCategories가 빈 배열이면 서로를 무한히 부르는 문제도 이 플래그로 같이 막힌다.) */
+var materialSeeded=false;
 function renderMaterialTable(){
   if(!materialPlan) materialPlan = [];
-  if(!materialPlan.length){ loadMaterialPlan(); return; }
+  if(!materialPlan.length && !materialSeeded){ loadMaterialPlan(); return; }
+  if(!materialPlan.length){
+    document.getElementById('matBody').innerHTML =
+      '<tr><td colspan="13" style="text-align:center;color:var(--lbl);padding:18px;">행이 없습니다 — 위 [기본목록으로 다시 채우기]를 눌러주세요</td></tr>';
+    return;
+  }
   var rows = materialPlan.map(function(r,i){
     var workDays = networkDaysExclHolidays(r.start, r.finish);
     var perDayQty = workDays>0 ? (r.qty/workDays) : 0;
@@ -1611,10 +1768,24 @@ function renderMaterialTable(){
       +'<td>'+manpower+'</td>'
       +'<td>'+totalManpower+'</td>'
       +'<td><input class="txi" value="'+esc(r.note||'')+'" onchange="updMat('+i+',\'note\',this.value)"></td>'
+      // 작업일보에서 작업분류를 지워도 여기 행은 그대로 남는데, 예전엔 지울 방법이 "기본목록으로
+      // 다시 채우기"(입력값 전멸)뿐이었다 — 행 단위 삭제를 붙임(2026-08-12).
+      +'<td><button type="button" class="btn sm danger mat-del" data-i="'+i+'" title="이 행 삭제">✕</button></td>'
       +'</tr>';
   }).join('');
   document.getElementById('matBody').innerHTML = rows;
 }
+document.getElementById('matBody').addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.mat-del') : null;
+  if(!btn) return;
+  var i = +btn.dataset.i;
+  var r = materialPlan[i];
+  if(!r) return;
+  if(!confirm('"'+(r.name||'')+'" 행을 삭제할까요?\n삭제 후 상단 [저장]을 눌러야 반영됩니다.')) return;
+  materialPlan.splice(i,1);
+  renderMaterialTable();
+  showToast('행을 지웠습니다. 저장을 눌러주세요','var(--brand-2)');
+});
 function updMat(i, field, val){
   if(field==='qty' || field==='perDay') val = +val || 0;
   materialPlan[i][field] = val;
@@ -1634,6 +1805,46 @@ async function saveMaterialPlan(){
 }
 
 if(!isMobileDevice) init();
+
+/* 서비스워커 자동 업데이트 — report/shoot과 동일한 패턴(2026-08-12 추가).
+   sw.js 파일은 처음부터 있었고 배포할 때마다 SW_VERSION도 올려왔는데, 정작 등록하는 코드가
+   어디에도 없어서 자동 업데이트가 한 번도 동작한 적이 없었다(브라우저가 캐시된 예전 화면을
+   계속 쓰는 상태). login.html에도 같은 블록이 들어간다. */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').then(function(reg){
+    function promptUpdate(){
+      if(document.getElementById('updateBanner'))return;
+      var b=document.createElement('div');
+      b.id='updateBanner';
+      b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1A2332;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:700;z-index:99999;display:flex;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.35);white-space:nowrap;';
+      b.innerHTML='새 버전이 있습니다 <button id="updateBtn" style="background:#FEE500;color:#1A2332;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:800;cursor:pointer;">업데이트</button>';
+      document.body.appendChild(b);
+      document.getElementById('updateBtn').onclick=function(){
+        if(reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      };
+    }
+    // 앱을 "새로 여는" 시점에 이미 새 버전이 대기 중이면 배너 없이 바로 최신화하고,
+    // 쓰던 도중에 발견되면(updatefound) 작업 방해 없이 배너로만 알린다.
+    if(reg.waiting && navigator.serviceWorker.controller) reg.waiting.postMessage('SKIP_WAITING');
+    reg.addEventListener('updatefound',function(){
+      var nw=reg.installing;
+      if(!nw)return;
+      nw.addEventListener('statechange',function(){
+        if(nw.state==='installed' && navigator.serviceWorker.controller) promptUpdate();
+      });
+    });
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState==='visible') reg.update();
+    });
+    reg.update();
+  });
+  var wrReloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(wrReloading)return;
+    wrReloading=true;
+    location.reload();
+  });
+}
 </script>
 
 <!-- 앱 공용 이동 버튼. 파일은 report 저장소에 하나만 두고 각 앱이 절대경로로 불러온다. -->

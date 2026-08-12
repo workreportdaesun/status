@@ -116,7 +116,9 @@ var SUPABASE_URL='https://feymoykefzfwucbrqoja.supabase.co';
 var SUPABASE_KEY='sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
 var sbClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-var isMobileDevice = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
+// iPadOS 13부터 아이패드 UA가 "Macintosh"라 정규식만으로는 PC로 통과한다 — index.html과 동일 처리.
+var isMobileDevice = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
+  || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 if(isMobileDevice){
   document.getElementById('appRoot').style.display='none';
   document.getElementById('pcOnlyBlock').style.display='flex';
@@ -250,6 +252,29 @@ async function loadCatOptions(){
   }catch(e){ hint.textContent='⚠️ 작업분류 목록을 불러오지 못해 기본 목록으로 표시합니다.'; }
 }
 loadCatOptions();
+
+/* 서비스워커 등록 — index.html과 같은 이유(2026-08-12). manifest의 start_url이 이 페이지라
+   설치형(PWA)으로 열면 여기가 첫 화면이 되므로, 여기서도 등록해야 새 버전이 잡힌다.
+   로그인 화면은 배너를 띄울 만한 작업 중 상태가 없어 대기 중인 새 버전은 바로 적용한다. */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').then(function(reg){
+    if(reg.waiting && navigator.serviceWorker.controller) reg.waiting.postMessage('SKIP_WAITING');
+    reg.addEventListener('updatefound',function(){
+      var nw=reg.installing;
+      if(!nw)return;
+      nw.addEventListener('statechange',function(){
+        if(nw.state==='installed' && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      });
+    });
+    reg.update();
+  });
+  var wrReloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(wrReloading)return;
+    wrReloading=true;
+    location.reload();
+  });
+}
 </script>
 </body>
 </html>
