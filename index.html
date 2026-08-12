@@ -1036,6 +1036,14 @@ function holidayDataWarning(){
 }
 /* 예상 시작일~완료일이 상한(MAX_RANGE_MONTHS)을 넘으면 뒤쪽이 잘려서 보인다 — 조용히 자르지
    말고 얼마나 잘렸는지 알려준다. */
+/* 완료일을 시작일보다 앞으로 잡으면 모든 버킷 생성 루프가 첫 판정에서 끝나 열이 0개가 된다 —
+   화면엔 탭마다 "표시할 데이터가 없습니다"만 뜨고 왜 그런지 알 수가 없었다(2026-08-12). */
+function rangeOrderWarning(){
+  var r = reportRange();
+  if(!r.start || !r.end) return '';
+  if(r.start <= r.end) return '';
+  return '<b>완료일('+r.end+')이 예상 시작일('+r.start+')보다 앞</b>입니다 — 그래서 모든 표가 비어 있습니다. 날짜를 다시 확인해주세요.';
+}
 function rangeCapWarning(){
   var r = reportRange();
   if(!r.start || !r.end) return '';
@@ -1046,6 +1054,8 @@ function rangeCapWarning(){
 }
 function renderMigBanner(){
   var msgs=[];
+  var orderWarn = rangeOrderWarning();
+  if(orderWarn) msgs.push(orderWarn);
   var capWarn = rangeCapWarning();
   if(capWarn) msgs.push(capWarn);
   var holWarn = holidayDataWarning();
@@ -1264,7 +1274,10 @@ function renderAttendanceTable(cols, renderCount){
   var totalMD = mgmt.concat(field).reduce(function(s,m){
     return s + allDays.reduce(function(t,d){ return t + mdOnDay(m.id, d); },0);
   },0);
-  var periodLabel = viewMode==='day' ? ((+dayMonth.slice(5,7))+'월') : (viewMode==='week' ? '전체기간(주간)' : '전체기간(월간)');
+  // dayMonth가 비어 있으면(기간 미설정) +''.slice(...)가 0이 되어 "0월 총 출력"으로 찍혔다.
+  var periodLabel = viewMode==='day'
+    ? (dayMonth ? ((+dayMonth.slice(5,7))+'월') : '기간 미설정')
+    : (viewMode==='week' ? '전체기간(주간)' : '전체기간(월간)');
   document.getElementById('attSummary').textContent = '등록인원 '+(mgmt.length+field.length)+'명 · '+periodLabel+' 총 출력 '+totalMD+'MD';
 }
 // visCols: 실제로 <td>를 그릴 열(가상 스크롤 대상이면 cols의 앞부분만). hiddenBody: 안 그린 뒤쪽 열을 대신할 회색 칸(콜스팬) —
@@ -1751,22 +1764,20 @@ function renderMaterialTable(){
     return;
   }
   var rows = materialPlan.map(function(r,i){
-    var workDays = networkDaysExclHolidays(r.start, r.finish);
-    var perDayQty = workDays>0 ? (r.qty/workDays) : 0;
-    var manpower = r.perDay>0 ? Math.floor(perDayQty/r.perDay) : 0;
-    var totalManpower = Math.round(workDays*manpower);
-    return '<tr>'
+    var d = matDerived(r);
+    var workDays=d.workDays, perDayQty=d.perDayQty, manpower=d.manpower, totalManpower=d.totalManpower;
+    return '<tr data-i="'+i+'">'
       +'<td>'+(i+1)+'</td>'
       +'<td style="text-align:left;">'+esc(r.name)+'</td>'
       +'<td><input class="txi" style="width:56px;" value="'+esc(r.unit||'')+'" onchange="updMat('+i+',\'unit\',this.value)"></td>'
       +'<td><input type="date" class="dtx" value="'+(r.start||'')+'" onchange="updMat('+i+',\'start\',this.value)"></td>'
       +'<td><input type="date" class="dtx" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
       +'<td><input type="number" class="qi" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
-      +'<td>'+workDays+'</td>'
-      +'<td>'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
+      +'<td class="mat-workdays">'+workDays+'</td>'
+      +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
       +'<td><input type="number" class="qi" value="'+(r.perDay||0)+'" step="0.01" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
-      +'<td>'+manpower+'</td>'
-      +'<td>'+totalManpower+'</td>'
+      +'<td class="mat-manpower">'+manpower+'</td>'
+      +'<td class="mat-total">'+totalManpower+'</td>'
       +'<td><input class="txi" value="'+esc(r.note||'')+'" onchange="updMat('+i+',\'note\',this.value)"></td>'
       // 작업일보에서 작업분류를 지워도 여기 행은 그대로 남는데, 예전엔 지울 방법이 "기본목록으로
       // 다시 채우기"(입력값 전멸)뿐이었다 — 행 단위 삭제를 붙임(2026-08-12).
@@ -1786,10 +1797,28 @@ document.getElementById('matBody').addEventListener('click', function(e){
   renderMaterialTable();
   showToast('행을 지웠습니다. 저장을 눌러주세요','var(--brand-2)');
 });
+/* 한 행에서 파생되는 계산값(작업일수·시공물량·투입인력·예상 총투입인원)을 한 군데서 구한다 —
+   렌더링과 부분 갱신이 같은 식을 쓰게 하려는 것. */
+function matDerived(r){
+  var workDays = networkDaysExclHolidays(r.start, r.finish);
+  var perDayQty = workDays>0 ? (r.qty/workDays) : 0;
+  var manpower = r.perDay>0 ? Math.floor(perDayQty/r.perDay) : 0;
+  return {workDays:workDays, perDayQty:perDayQty, manpower:manpower, totalManpower:Math.round(workDays*manpower)};
+}
+/* 값 하나 고칠 때마다 표 전체를 다시 그리면, onchange가 끝나기 전에 다음 입력칸이 통째로
+   지워져서 Tab으로 넘어갈 때 포커스가 사라졌다(칸을 하나 채울 때마다 마우스로 다시 클릭해야
+   했음). 이제 바뀐 행의 계산 결과 칸만 갈아끼운다 — 입력칸 DOM은 건드리지 않는다(2026-08-12). */
 function updMat(i, field, val){
   if(field==='qty' || field==='perDay') val = +val || 0;
   materialPlan[i][field] = val;
-  renderMaterialTable();
+  var row = document.querySelector('#matBody tr[data-i="'+i+'"]');
+  if(!row){ renderMaterialTable(); return; }
+  var d = matDerived(materialPlan[i]);
+  var set = function(sel, text){ var c=row.querySelector(sel); if(c) c.textContent=text; };
+  set('.mat-workdays', d.workDays);
+  set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(2):'0');
+  set('.mat-manpower', d.manpower);
+  set('.mat-total', d.totalManpower);
 }
 async function saveMaterialPlan(){
   var res = await sb.from('app_settings').update({material_plan:materialPlan}).eq('id','global');
