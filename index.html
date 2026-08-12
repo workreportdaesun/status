@@ -1666,12 +1666,14 @@ function renderMembersTab(){
     return '<tr><td>'+(i+1)+'</td><td style="text-align:left;">'+esc(m.name)+'</td><td>'+esc(m.position||'')+'</td>'
       +'<td>'+esc(m.phone||'')+'</td><td>'+esc(m.menu||'')+'</td><td>'+esc(m.cat||'')+'</td>'
       +'<td>'+esc(m.area||'')+'</td><td>'+esc(m.team||'')+'</td>'
-      +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td>'
-      +'<td><span class="badge '+(m.active===false?'err':'ok')+'">'+(m.active===false?'퇴사':'재직')+'</span></td></tr>';
+      +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td></tr>';
   }).join('');
-  if(!rows) rows = '<tr><td colspan="10" style="text-align:center;color:var(--lbl);padding:18px;">검색 결과가 없습니다</td></tr>';
+  if(!rows) rows = '<tr><td colspan="9" style="text-align:center;color:var(--lbl);padding:18px;">검색 결과가 없습니다</td></tr>';
+  // 근무여부 열 삭제(2026-08-13 사용자 요청). membersList가 active!==false로 이미 걸러진 상태라
+  // 뱃지가 "퇴사"를 띄울 수 없는 죽은 열이었다. 퇴사자를 되살리려면 위 필터부터 손봐야 하는데,
+  // membersList는 물량소화·인원동원 집계도 함께 쓰므로 그쪽 영향을 먼저 확인할 것.
   document.getElementById('memTableWrap').innerHTML =
-    '<table class="dt"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th><th>근무여부</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="dt"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 // ---------- 공휴일 ----------
