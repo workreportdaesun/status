@@ -519,15 +519,32 @@ function switchTab(name){
    숨어 있는 탭은 폭이 0이라 로드해봐야 레이아웃이 안 나오므로, 탭을 처음 열 때 불러온다. */
 /* 자재관리 표도 안에서 세로로 스크롤되므로(공정관리와 동일), iframe 높이는 화면에 맞춰
    고정한다 — 내용 높이에 맞추면 안쪽 max-height와 서로 밀어내며 끝없이 늘어난다. */
-var mtlLoaded=false;
+/* ── 삽입한 앱의 새 배포를 자동으로 따라가기(2026-08-12) ────────────────────
+   자재관리(/material/)와 공정관리(/progress/)는 이 앱과 따로 배포된다. 그런데 iframe은
+   한 번 띄우면 탭을 오가도 다시 읽지 않는 데다, GitHub Pages가 HTML에
+   Cache-Control: max-age=600을 붙이기 때문에, 그 앱만 새로 배포하면 이 화면에서는
+   한참 동안 예전 모습이 그대로 보였다("고쳤는데 화면이 안 바뀐다"로 신고됨).
+   탭을 열 때 안쪽 문서의 ETag(없으면 Last-Modified)를 HEAD로 확인해서 주소에 붙인다 —
+   내용이 그대로면 주소도 그대로라 다시 읽지 않고, 새로 배포됐을 때만 주소가 바뀌어
+   브라우저가 강제로 새 문서를 받는다. HEAD가 실패하면(오프라인 등) 예전처럼 동작한다. */
+async function frameStamp(path){
+  try{
+    var r = await fetch(path, {method:'HEAD', cache:'no-store'});
+    var t = r.headers.get('ETag') || r.headers.get('Last-Modified') || '';
+    return t ? t.replace(/[^A-Za-z0-9]/g,'').slice(-16) : '';
+  }catch(e){ return ''; }
+}
+var mtlSrc='';
 function syncMtlHeight(){ fitFrameToViewport('mtlFrame'); }
-function openMaterialFrame(){
+async function openMaterialFrame(){
   var f=document.getElementById('mtlFrame');
   if(!f) return;
   syncMtlHeight();
-  if(mtlLoaded) return;
-  mtlLoaded=true;
-  f.src='/material/index.html?embed=1';
+  var st = await frameStamp('/material/index.html');
+  var src = '/material/index.html?embed=1' + (st ? '&v='+st : '');
+  if(mtlSrc === src) return;   // 안쪽 앱이 그대로면 다시 읽지 않는다
+  mtlSrc = src;
+  f.src = src;
 }
 /* 삽입된 앱 화면을 창 아래까지 채운다 — 자재관리·공정관리가 같이 쓴다. */
 function fitFrameToViewport(id){
@@ -543,24 +560,24 @@ function fitFrameToViewport(id){
 }
 /* 공정관리는 높이를 화면에 맞춰 고정하고 안쪽에서 스크롤한다(위 패널 주석 참고 — 내용 높이에
    맞추면 CHECK LIST 표와 서로 밀어내며 끝없이 늘어난다). */
-var prgLoaded=false;
+var prgBase='';   // 지금 띄워둔 공정관리 주소(탭 파라미터 제외) — 스탬프가 바뀌면 이 값도 바뀐다
 function syncPrgHeight(){ fitFrameToViewport('prgFrame'); }
-/* inner: 'proc'(공정률) | 'check'(CHECK LIST). 처음에는 그 탭으로 바로 열고, 이미 떠 있으면
-   같은 도메인이라 안쪽 showTab을 직접 불러 전환한다(다시 불러오지 않음). */
-function openProgressFrame(inner){
+/* inner: 'proc'(공정률) | 'check'(체크리스트). 안쪽 앱이 그대로면 다시 읽지 않고 같은 도메인의
+   showTab을 직접 불러 탭만 바꾼다. 새로 배포됐으면(스탬프 변경) 주소가 달라지므로 새로 읽는다. */
+async function openProgressFrame(inner){
   var f=document.getElementById('prgFrame');
   if(!f) return;
   syncPrgHeight();
-  if(!prgLoaded){
-    prgLoaded=true;
-    f.src='/progress/index.html?embed=1&tab='+inner;
-    return;
+  var st = await frameStamp('/progress/index.html');
+  var base = '/progress/index.html?embed=1' + (st ? '&v='+st : '');
+  if(prgBase === base){
+    try{
+      var w=f.contentWindow;
+      if(w && typeof w.showTab==='function'){ w.showTab(inner); return; }
+    }catch(e){}   // 아직 로딩 중이면 아래에서 주소로 다시 지정
   }
-  try{
-    var w=f.contentWindow;
-    if(w && typeof w.showTab==='function') w.showTab(inner);
-    else f.src='/progress/index.html?embed=1&tab='+inner;   // 아직 로딩 중이면 주소로 다시 지정
-  }catch(e){ f.src='/progress/index.html?embed=1&tab='+inner; }
+  prgBase = base;
+  f.src = base + '&tab=' + inner;
 }
 window.addEventListener('resize', function(){
   var mtl=document.getElementById('panel-mtl'), prg=document.getElementById('panel-prg');
