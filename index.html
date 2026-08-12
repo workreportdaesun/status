@@ -294,8 +294,10 @@ if(isMobileDevice){
     <div class="card">
       <h2>물량 소화 계획</h2>
       <div class="toolbar">
+        <!-- "기본목록으로 다시 채우기"는 삭제(2026-08-12 사용자 요청). 누르면 입력값이 전부
+             날아가는 버튼이라 실수 여지가 컸다 — 목록이 비어 있으면 화면을 열 때 자동으로
+             채워지므로(loadMaterialPlan) 수동 버튼이 없어도 복구된다. -->
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
-        <button class="btn sm ghost" onclick="loadMaterialPlan(true)">기본목록으로 다시 채우기</button>
       </div>
       <div class="tablewrap"><table class="dt" id="matTable" style="width:100%;">
         <thead><tr>
@@ -314,7 +316,7 @@ if(isMobileDevice){
     <div class="card">
       <h2>인원동원계획</h2>
       <div class="toolbar">
-        <span style="font-size:12px;color:var(--lbl);">예상 시작일~완료일(출력일지 탭에서 설정) 기준, 월별 직책별 계획인원(M/D)</span>
+        <!-- 상단 안내 문구는 삭제(2026-08-12 사용자 요청) — 같은 내용이 표 아래 .note에 이미 있다. -->
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
       <div class="tablewrap tw-split">
@@ -1764,7 +1766,7 @@ function renderMaterialTable(){
   if(!materialPlan.length && !materialSeeded){ loadMaterialPlan(); return; }
   if(!materialPlan.length){
     document.getElementById('matBody').innerHTML =
-      '<tr><td colspan="13" style="text-align:center;color:var(--lbl);padding:18px;">행이 없습니다 — 위 [기본목록으로 다시 채우기]를 눌러주세요</td></tr>';
+      '<tr><td colspan="13" style="text-align:center;color:var(--lbl);padding:18px;">행이 없습니다 — 저장하지 않고 화면을 새로고침하면 작업일보 작업분류로 다시 채워집니다</td></tr>';
     return;
   }
   var rows = materialPlan.map(function(r,i){
