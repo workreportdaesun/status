@@ -12,6 +12,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- 인원투입계획은 현장관리자 이상. 작업자(worker)는 출퇴근체크로 돌려보낸다. -->
 <script src="/report/role-gate.js" data-require="manager"></script>
+<!-- 차트(2026-08-13). supabase-js와 같은 CDN·같은 방식(메이저 고정)으로 받는다.
+     sw.js가 모든 요청을 fetch로 통과시키고 CSP도 없어 로드에 문제 없음. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --brand-1:#1E3A5F; --brand-2:#2E5F9E; --brand-3:#4A82C4;
@@ -169,6 +172,14 @@ table.dt td.cf-ok  {background:#E8F6EE;}   /* 달성 — 계획의 90% 이상 */
 table.dt td.cf-warn{background:#FDF3E3;}   /* 주의 — 60~90% */
 table.dt td.cf-err {background:#FDECEA;}   /* 미달 — 60% 미만 */
 table.dt td.cf-out {background:#EEF1F4; color:var(--lbl);}   /* 계획 외 투입 — 계획 0인데 실적 있음 */
+/* 표(왼쪽) + 차트(오른쪽) 반반 배치(2026-08-13 사용자 지시).
+   ⚠️ 물량소화산출 표는 13열이라 최소 폭이 1066px다 — 1920 화면의 절반(약 920px)에도 안 들어가
+      가로 스크롤이 생긴다. 창이 좁으면 차트를 표 아래로 내려 표가 최소한의 폭은 갖게 한다.
+      비율을 바꾸려면 grid-template-columns만 조정하면 된다(예: 1.4fr 1fr). */
+.split{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;}
+.chartpane{border:1px solid var(--card-bd); background:var(--card); padding:10px; min-width:0; position:relative;}
+.chartpane canvas{display:block;}
+@media (max-width:1400px){ .split{grid-template-columns:1fr;} .chartpane{height:260px !important;} }
 table.dt td.blank{background:repeating-linear-gradient(135deg,#F3F5F8,#F3F5F8 4px,#EAEEF2 4px,#EAEEF2 8px);}
 /* 일별 모드에서 기간이 길 때 아직 안 그린(가상 스크롤 대기 중인) 뒤쪽 열 자리 표시 — 실제 데이터 칸(.blank)과
    헷갈리지 않게 다른 사선 패턴+연한 라벨색을 씀, 가로로 스크롤해서 다가오면 실제 칸으로 바뀜. */
@@ -373,6 +384,7 @@ if(isMobileDevice){
              채워지므로(loadMaterialPlan) 수동 버튼이 없어도 복구된다. -->
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
       </div>
+      <div class="split">
       <div class="tablewrap"><table class="dt dt-num1" id="matTable" style="width:100%;">
         <thead><tr>
           <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
@@ -381,6 +393,8 @@ if(isMobileDevice){
         </tr></thead>
         <tbody id="matBody"></tbody>
       </table></div>
+      <div class="chartpane"><canvas id="matChart"></canvas></div>
+      </div>
       <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다. "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
     </div>
   </div>
@@ -393,9 +407,12 @@ if(isMobileDevice){
         <!-- 상단 안내 문구는 삭제(2026-08-12 사용자 요청) — 같은 내용이 표 아래 .note에 이미 있다. -->
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
       </div>
-      <div class="tablewrap tw-split">
-        <div class="tw-head-clip"><div id="mobTableHead"></div></div>
-        <div class="tw-body-scroll"><div id="mobTableWrap">불러오는 중...</div></div>
+      <div class="split">
+        <div class="tablewrap tw-split">
+          <div class="tw-head-clip"><div id="mobTableHead"></div></div>
+          <div class="tw-body-scroll"><div id="mobTableWrap">불러오는 중...</div></div>
+        </div>
+        <div class="chartpane"><canvas id="mobChart"></canvas></div>
       </div>
       <div class="note">인원투입계획 탭과 같은 계획인원(position_plan_qty) 데이터를 월 단위로만 보여주는 화면입니다 — 여기서 셀을 수정하면 인원투입계획 탭에도 그대로 반영됩니다. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 입력값을 그대로 더한 값).</div>
     </div>
@@ -719,7 +736,22 @@ function fitTableWrapHeight(){
   var note = panel.querySelector('.note');
   var bottomReserve = (note ? note.getBoundingClientRect().height : 0) + 14;
   var avail = window.innerHeight - rect.top - bottomReserve;
-  wrap.style.maxHeight = Math.max(160, Math.floor(avail)) + 'px';
+  var h = Math.max(160, Math.floor(avail));
+  wrap.style.maxHeight = h + 'px';
+  /* 옆에 붙은 차트도 표와 같은 높이로 맞춘다 — Chart.js는 부모 높이를 보고 캔버스를 잡으므로
+     높이를 안 주면 0px이 되어 아무것도 안 보인다. 좁은 창(≤1400px)에서는 차트가 표 아래로
+     내려가고 CSS가 260px을 강제하므로 여기서 건드리지 않는다. */
+  var pane = panel.querySelector('.chartpane');
+  if(pane && window.innerWidth > 1400) pane.style.height = h + 'px';
+  if(pane) requestAnimationFrame(redrawActiveChart);
+}
+/* 지금 보이는 탭의 차트를 다시 그린다. 숨어 있는 동안에는 캔버스 폭이 0이라 그릴 수 없어서,
+   탭이 실제로 보이게 된 뒤에 한 번 더 그려야 제 크기가 나온다(표와 같은 이유). */
+function redrawActiveChart(){
+  var btn = document.querySelector('.tab-btn.active');
+  var name = btn ? btn.dataset.tab : '';
+  if(name==='mob') drawMobChart();
+  else if(name==='mat') drawMatChart();
 }
 // 창 크기가 바뀌면 높이뿐 아니라 표 폭도 새 창 폭에 맞춰 다시 계산해야 "꽉 찬 상태"가 계속 유지됨(2026-08-11).
 var _reflowTimer=null;
@@ -1570,6 +1602,34 @@ function mdOnDay(memberId, dateStr){
      · 행 키를 명단의 현재 값이 아니라 그날 작업일보 기록에서 먼저 찾는다 — 분류를 바꿔도 과거가 안 흔들린다. */
 /* 계획 대비 실적을 조건부서식 클래스로 바꾼다. 임계값(90%/60%)은 달성률 배지와 같은 값이며,
    badgeClsFor와 한 곳에서 관리해 둘이 어긋나지 않게 한다. */
+/* ───────── 차트 (2026-08-13) ─────────────────────────────────────────────
+   원칙: 차트는 표가 이미 구한 값을 그대로 받는다. 따로 집계하면 휴일 제외·반올림 규칙이
+   두 곳으로 갈라져 표와 숫자가 어긋난다. 그래서 render*Table이 그리는 김에 값을 담아두고
+   차트는 그것만 읽는다. */
+var _charts = {};
+function drawChart(id, cfg){
+  if(typeof Chart === 'undefined') return;              // CDN이 막힌 환경이면 조용히 건너뛴다
+  var el = document.getElementById(id);
+  if(!el || !el.offsetParent) return;                   // 숨은 탭은 폭이 0이라 그려봐야 찌그러진다
+  if(_charts[id]){ _charts[id].destroy(); }             // 안 지우면 마우스오버가 유령처럼 겹치고 메모리가 샌다
+  _charts[id] = new Chart(el, cfg);
+}
+var CHART_NAVY='#2E5F9E', CHART_GREEN='#27AE60', CHART_LBL='#5A7A9A', CHART_GRID='#E6EDF5', CHART_INK='#1A2332';
+function chartBase(){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{backgroundColor:'#1A2332', titleFont:{size:12,weight:'700'}, bodyFont:{size:12},
+               padding:9, cornerRadius:0, boxWidth:10, boxHeight:10}
+    },
+    scales:{
+      x:{grid:{display:false}, border:{color:'#D1DCE8'}, ticks:{color:CHART_LBL, font:{size:10.5}}},
+      y:{beginAtZero:true, grid:{color:CHART_GRID}, border:{display:false}, ticks:{color:CHART_LBL, font:{size:10.5}, precision:0}}
+    }
+  };
+}
+
 var RATE_OK = 0.9, RATE_WARN = 0.6;
 function badgeClsFor(rate){ return rate>=RATE_OK*100 ? 'ok' : (rate>=RATE_WARN*100 ? 'warn' : 'err'); }
 function cfClass(plan, act){
@@ -1699,11 +1759,14 @@ function catKey(menu, cat){ return (menu||'') + '|' + (cat||''); }
    esc()가 만든 &#39; 를 HTML 파서가 다시 '로 풀어버려 JS 문자열이 깨진다. 이름 대신 행 번호를
    넘기고 여기서 찾아 쓰면 이름에 어떤 문자가 들어와도 안전하다. */
 var catRowsCache = [];
+/* 시공 분류만 보여준다(2026-08-13 사용자 지시). 예전엔 5개 메뉴를 다 펼쳐 86행이었는데,
+   물량을 소화하는 건 시공이라 나머지 메뉴(안전·자재·품질·화기/유도)는 뺐다.
+   물량소화산출·작업일보와 같은 목록을 쓰도록 기존 sikongCategories()를 그대로 재사용한다.
+   ⚠️ 시공이 아닌 사람의 출력은 이 화면 어느 행에도 잡히지 않는다(집계 자체는 그대로 되지만
+      표시할 행이 없다) — 전체를 다시 보려면 여기서 메뉴를 늘리면 된다. */
 function catRowList(){
-  var byMenu = appSettings.cats_by_menu || {};
-  var out = [];
-  Object.keys(byMenu).forEach(function(menu){
-    (byMenu[menu] || []).forEach(function(cat){ out.push({menu:menu, cat:cat, key:catKey(menu,cat)}); });
+  var out = sikongCategories().map(function(cat){
+    return {menu:'시공', cat:cat, key:catKey('시공', cat)};
   });
   catRowsCache = out;
   return out;
@@ -1775,8 +1838,10 @@ function renderCatTable(cols, renderCount){
     // 직책 화면이 간접/직접으로 묶는 것처럼, 여기서는 메뉴(시공·안전·자재·품질·화기/유도)로 묶는다.
     var byMenu = {};
     rows.forEach(function(r,i){ r._i = i; (byMenu[r.menu] = byMenu[r.menu] || []).push(r); });
-    Object.keys(byMenu).forEach(function(menu){
-      html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">'+esc(menu)+'</span></td></tr>';
+    var menus = Object.keys(byMenu);
+    menus.forEach(function(menu){
+      // 메뉴가 하나뿐이면(지금은 시공만) 구분행이 의미 없는 한 줄 낭비라 넣지 않는다.
+      if(menus.length > 1) html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">'+esc(menu)+'</span></td></tr>';
       byMenu[menu].forEach(function(r){ html += catRowHtml(r, r._i); });
     });
   }
@@ -1849,6 +1914,13 @@ function renderMobilizationTable(){
       var s = MGMT_POSITIONS.concat(FIELD_POSITIONS).reduce(function(a,pos){ return a + (+((positionPlanQty[monthStr]||{})[pos]||0)); },0);
       return '<td>'+(s||'')+'</td>';
     }).join('');
+    // 차트가 쓸 값 — 위에서 표에 그린 것과 같은 positionPlanQty를 같은 방식으로 읽는다.
+    mobChartData = {
+      labels: months.map(function(c){ var m=monthStrOf(c); return (+m.slice(5,7))+'월'; }),
+      series: MGMT_POSITIONS.concat(FIELD_POSITIONS).map(function(pos){
+        return {pos:pos, data:months.map(function(c){ return +((positionPlanQty[monthStrOf(c)]||{})[pos]||0); })};
+      }).filter(function(sr){ return sr.data.some(function(v){ return v>0; }); })   // 값이 하나도 없는 직책은 범례만 차지한다
+    };
     bodyHtml += '<tr class="tot-row"><td class="lbl">합계</td>'+totCells+'</tr>';
   }
   bodyHtml += '</tbody></table>';
@@ -1856,6 +1928,32 @@ function renderMobilizationTable(){
   document.getElementById('mobTableWrap').innerHTML = bodyHtml;
   bindHeaderSync(document.getElementById('mobTableWrap'));
   syncHeadClipGutter('mobTableWrap');
+  drawMobChart();
+}
+var mobChartData = {labels:[], series:[]};
+/* 직책을 쌓아 월별 총 동원인원과 구성을 같이 보여준다. 색은 남색 계열 5단계를 돌려쓴다 —
+   직책이 27개라 색을 다 다르게 주면 오히려 구분이 안 된다. */
+function drawMobChart(){
+  var SH=['#1E3A5F','#2E5F9E','#4A82C4','#7BA6D8','#AFC9E6'];
+  drawChart('mobChart', {
+    type:'bar',
+    data:{labels:mobChartData.labels,
+      datasets:mobChartData.series.map(function(sr,i){
+        return {label:sr.pos, data:sr.data, backgroundColor:SH[i%SH.length], borderWidth:0, borderRadius:0};
+      })},
+    options:Object.assign(chartBase(), {
+      plugins:{
+        legend:{display:true, position:'bottom', labels:{boxWidth:9, boxHeight:9, font:{size:10}, color:CHART_LBL, padding:6}},
+        tooltip:{backgroundColor:'#1A2332', titleFont:{size:12,weight:'700'}, bodyFont:{size:12}, padding:9,
+                 cornerRadius:0, boxWidth:10, boxHeight:10, mode:'index', intersect:false,
+                 callbacks:{label:function(it){ return it.dataset.label+' '+it.parsed.y+'명'; }},
+                 filter:function(it){ return it.parsed.y>0; }}
+      },
+      scales:{x:{stacked:true, grid:{display:false}, border:{color:'#D1DCE8'}, ticks:{color:CHART_LBL, font:{size:10.5}}},
+              y:{stacked:true, beginAtZero:true, grid:{color:CHART_GRID}, border:{display:false},
+                 ticks:{color:CHART_LBL, font:{size:10.5}, precision:0}}}
+    })
+  });
 }
 
 // ---------- 근로자명단 ----------
@@ -2042,9 +2140,11 @@ function renderMaterialTable(){
       '<tr><td colspan="13" style="text-align:center;color:var(--lbl);padding:18px;">행이 없습니다 — 저장하지 않고 화면을 새로고침하면 작업일보 작업분류로 다시 채워집니다</td></tr>';
     return;
   }
+  matChartData = [];
   var rows = materialPlan.map(function(r,i){
     var d = matDerived(r);
     var workDays=d.workDays, perDayQty=d.perDayQty, manpower=d.manpower, totalManpower=d.totalManpower;
+    if(totalManpower>0) matChartData.push({name:r.name, total:totalManpower});
     return '<tr data-i="'+i+'">'
       +'<td>'+(i+1)+'</td>'
       +'<td style="text-align:left;">'+esc(r.name)+'</td>'
@@ -2064,6 +2164,26 @@ function renderMaterialTable(){
       +'</tr>';
   }).join('');
   document.getElementById('matBody').innerHTML = rows;
+  drawMatChart();
+}
+var matChartData = [];
+/* 예상 총투입인원을 큰 순서로. 라벨(DESCRIPTION)이 길어 세로 막대에서는 눕거나 잘리므로 가로 막대로 둔다.
+   행이 20개 남짓이라 전부 그린다 — 값이 0인 항목(관리자 등)은 위에서 이미 빠졌다. */
+function drawMatChart(){
+  var rows = matChartData.slice().sort(function(a,b){ return b.total - a.total; });
+  drawChart('matChart', {
+    type:'bar',
+    data:{labels:rows.map(function(r){ return r.name; }),
+      datasets:[{label:'예상 총투입인원', data:rows.map(function(r){ return r.total; }),
+                 backgroundColor:CHART_NAVY, borderWidth:0, borderRadius:0, barPercentage:.8}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#1A2332', titleFont:{size:12,weight:'700'}, bodyFont:{size:12}, padding:9,
+                 cornerRadius:0, boxWidth:10, boxHeight:10,
+                 callbacks:{label:function(it){ return ' '+it.parsed.x.toLocaleString()+'명'; }}}},
+      scales:{x:{beginAtZero:true, grid:{color:CHART_GRID}, border:{display:false}, ticks:{color:CHART_LBL, font:{size:10.5}}},
+              y:{grid:{display:false}, border:{color:'#D1DCE8'}, ticks:{color:CHART_LBL, font:{size:10.5}}}}}
+  });
 }
 document.getElementById('matBody').addEventListener('click', function(e){
   var btn = e.target.closest ? e.target.closest('.mat-del') : null;
