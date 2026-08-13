@@ -168,6 +168,14 @@ table.dt td.flag.on{background:var(--ok-solid); color:#fff;}
    입력칸이 있는 표(물량소화계획·인원동원계획)도 출력일지와 행 높이가 같아진다. */
 table.dt td input.qi, table.dt td input.dtx, table.dt td input.txi{
   height:21px; padding:0 4px; box-sizing:border-box; border:1px solid var(--field-bd); border-radius:5px; font-size:12px;}
+/* ── 첫번째 열 기준(2026-08-13) ────────────────────────────────────────────
+   5개 화면(근로자명단·물량소화계획·자재관리·공정률·체크리스트)의 1열이 정렬·폭·굵기가
+   제각각이라 탭을 옮길 때마다 들쭉날쭉했다. 1열 내용이 두 종류라 폭만 따로 간다.
+     번호형(번호·NO)          → 48px  · 가운데
+     이름형(품목·작업분류·TAG) → 150px · 왼쪽
+   정렬 외 나머지(굵기 400·테두리·높이)는 5개 전부 동일.
+   /material/ · /progress/ 에도 같은 값이 들어가 있다. */
+table.dt.dt-num1 th:first-child, table.dt.dt-num1 td:first-child{width:48px; text-align:center; font-weight:400;}
 table.dt td input.qi{width:56px; font-family:var(--font-mono); text-align:right;}
 table.dt td input.dtx{width:110px; font-family:var(--font-mono); text-align:center;}
 table.dt td input.txi{width:90px; font-family:var(--font-body);}
@@ -322,7 +330,7 @@ if(isMobileDevice){
              채워지므로(loadMaterialPlan) 수동 버튼이 없어도 복구된다. -->
         <button class="btn sm ghost" onclick="saveMaterialPlan()">저장</button>
       </div>
-      <div class="tablewrap"><table class="dt" id="matTable" style="width:100%;">
+      <div class="tablewrap"><table class="dt dt-num1" id="matTable" style="width:100%;">
         <thead><tr>
           <th>NO</th><th>DESCRIPTION</th><th>UNIT</th><th>Start</th><th>Finish</th>
           <th>계약물량</th><th>작업일수<br>(DAY)</th><th>시공물량<br>(/DAY)</th>
@@ -1678,7 +1686,7 @@ function renderMembersTab(){
   // 뱃지가 "퇴사"를 띄울 수 없는 죽은 열이었다. 퇴사자를 되살리려면 위 필터부터 손봐야 하는데,
   // membersList는 물량소화·인원동원 집계도 함께 쓰므로 그쪽 영향을 먼저 확인할 것.
   document.getElementById('memTableWrap').innerHTML =
-    '<table class="dt"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="dt dt-num1"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 // ---------- 공휴일 ----------
