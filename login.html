@@ -21,30 +21,30 @@
 *{box-sizing:border-box; margin:0; padding:0;}
 body{background:var(--bg); font-family:var(--font-body); color:var(--ink); min-height:100vh; padding:24px 16px; font-size:17px;}
 .wrap{max-width:420px; margin:0 auto;}
-.app-header{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:12px; padding:14px 18px; margin-bottom:16px; color:#fff;}
+.app-header{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:0; padding:14px 18px; margin-bottom:16px; color:#fff;}
 .app-title{font-size:24px; font-weight:800; letter-spacing:.5px; display:flex; align-items:center; gap:8px;}
-.app-title img{width:48px; height:48px; border-radius:8px;}
-.card{background:var(--card); border:1px solid var(--card-bd); border-radius:12px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:16px;}
-.tab-bar{display:grid; grid-template-columns:1fr 1fr; margin-bottom:18px; border-radius:8px; overflow:hidden; border:1.5px solid var(--field-bd);}
+.app-title img{width:48px; height:48px; border-radius:0;}
+.card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:16px;}
+.tab-bar{display:grid; grid-template-columns:1fr 1fr; margin-bottom:18px; border-radius:0; overflow:hidden; border:1.5px solid var(--field-bd);}
 .tab-btn{padding:11px; border:none; background:var(--field-bg); font-size:15px; font-weight:700; cursor:pointer; color:var(--lbl); font-family:var(--font-body); transition:background .2s,color .2s;}
 .tab-btn.active{background:var(--brand-2); color:#fff;}
 .flbl{font-size:11px; font-weight:700; color:var(--lbl); letter-spacing:.5px; text-transform:uppercase; margin-bottom:5px; margin-top:14px;}
 .flbl:first-child{margin-top:0;}
-.f{width:100%; background:var(--field-bg); border:1.5px solid var(--field-bd); border-radius:8px; padding:11px; color:var(--ink); font-size:17px; outline:none; font-family:var(--font-body); transition:border-color .2s;}
+.f{width:100%; background:var(--field-bg); border:1.5px solid var(--field-bd); border-radius:0; padding:11px; color:var(--ink); font-size:17px; outline:none; font-family:var(--font-body); transition:border-color .2s;}
 .f:focus{border-color:var(--brand-2); background:#fff;}
-.sbtn{width:100%; padding:13px; border:none; border-radius:10px; font-size:16px; font-weight:800; cursor:pointer; margin-top:18px; background:linear-gradient(135deg,#2980B9,#1A5276); color:#fff; font-family:var(--font-body);}
+.sbtn{width:100%; padding:13px; border:none; border-radius:0; font-size:16px; font-weight:800; cursor:pointer; margin-top:18px; background:linear-gradient(135deg,#2980B9,#1A5276); color:#fff; font-family:var(--font-body);}
 .sbtn:disabled{background:#BDC3C7; cursor:not-allowed;}
 .note-card{background:var(--field-bg); border:1.5px dashed var(--field-bd);}
 .note-card .flbl{margin-top:0;}
 .note-card p{font-size:12px; color:var(--lbl); line-height:1.6;}
 .note-card b{color:var(--brand-2);}
-.toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); max-width:calc(100vw - 32px); padding:10px 20px; border-radius:10px; font-size:14px; font-weight:700; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.2); opacity:0; pointer-events:none; transition:opacity .25s; white-space:normal; text-align:center; line-height:1.4; z-index:9998;}
+.toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); max-width:calc(100vw - 32px); padding:10px 20px; border-radius:0; font-size:14px; font-weight:700; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.2); opacity:0; pointer-events:none; transition:opacity .25s; white-space:normal; text-align:center; line-height:1.4; z-index:9998;}
 .toast.show{opacity:1;}
 </style>
 </head>
 <body>
 <div id="pcOnlyBlock" style="display:none; position:fixed; inset:0; background:#0d1117; z-index:2147483000; align-items:center; justify-content:center; padding:20px; font-family:Arial,'Malgun Gothic',sans-serif;">
-  <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:32px 24px; max-width:340px; width:100%; text-align:center;">
+  <div style="background:#161b22; border:1px solid #30363d; border-radius:0; padding:32px 24px; max-width:340px; width:100%; text-align:center;">
     <div style="font-size:36px; margin-bottom:12px;">🖥️</div>
     <div style="font-size:16px; font-weight:800; color:#e6edf3; margin-bottom:8px;">PC에서만 접속 가능합니다</div>
     <div style="font-size:13px; color:#8b949e; line-height:1.6;">인원투입계획/실투입은 관리용 화면으로<br>PC(데스크톱) 브라우저에서만 열 수 있습니다.</div>
