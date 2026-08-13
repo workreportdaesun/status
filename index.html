@@ -162,6 +162,13 @@ table.dt .tot-row td{background:#EAF1F8; font-weight:800;}
 table.dt .sat{color:var(--sat); background:var(--satbg);}
 table.dt .sun{color:var(--sun); background:var(--hol);}
 table.dt .hol{background:var(--hol);}
+/* 조건부서식(2026-08-13) — 계획(P) 대비 실적(A/F) 달성 정도를 A/F 칸 배경으로 보여준다.
+   기준은 오른쪽 달성률 배지와 똑같은 90%/60%다. 한 화면에서 기준이 두 개면 안 되기 때문.
+   .hol(휴일 배경)보다 뒤에 오고 선택자도 더 구체적이라, 휴일 칸에서도 이 색이 이긴다. */
+table.dt td.cf-ok  {background:#E8F6EE;}   /* 달성 — 계획의 90% 이상 */
+table.dt td.cf-warn{background:#FDF3E3;}   /* 주의 — 60~90% */
+table.dt td.cf-err {background:#FDECEA;}   /* 미달 — 60% 미만 */
+table.dt td.cf-out {background:#EEF1F4; color:var(--lbl);}   /* 계획 외 투입 — 계획 0인데 실적 있음 */
 table.dt td.blank{background:repeating-linear-gradient(135deg,#F3F5F8,#F3F5F8 4px,#EAEEF2 4px,#EAEEF2 8px);}
 /* 일별 모드에서 기간이 길 때 아직 안 그린(가상 스크롤 대기 중인) 뒤쪽 열 자리 표시 — 실제 데이터 칸(.blank)과
    헷갈리지 않게 다른 사선 패턴+연한 라벨색을 씀, 가로로 스크롤해서 다가오면 실제 칸으로 바뀜. */
@@ -311,7 +318,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="posTableHead"></div></div>
         <div class="tw-body-scroll"><div id="posTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=근로자 명단에 그 직책으로 등록된 인원의 출력일지 합계(기본+연장+추가+주월차)를 집계 · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 일별은 월 선택기로 고른 한 달만, 주간/월간은 예상 시작일~완료일 전체를 합산해 보여주는 조회 전용 화면입니다</div>
+      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출력일지 합계(기본+연장+추가+주월차)를 <b>그날 작업일보에 기록된 직책</b> 기준으로 집계 (작업일보에 직책이 없는 옛 기록은 명단의 현재 직책을 씁니다. 퇴사자가 남긴 과거 실적도 포함됩니다) · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 일별은 월 선택기로 고른 한 달만, 주간/월간은 예상 시작일~완료일 전체를 합산해 보여주는 조회 전용 화면입니다 · <b>A/F 칸 색</b>은 그 칸의 계획 대비 달성도입니다 — <span style="background:#E8F6EE;padding:0 5px;">90% 이상</span> <span style="background:#FDF3E3;padding:0 5px;">60~90%</span> <span style="background:#FDECEA;padding:0 5px;">60% 미만</span> <span style="background:#EEF1F4;padding:0 5px;">계획 외 투입</span> (오른쪽 달성률 배지와 같은 기준)</div>
     </div>
   </div>
 
@@ -336,7 +343,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="catTableHead"></div></div>
         <div class="tw-body-scroll"><div id="catTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">P(계획)=작업분류별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=근로자 명단에 그 작업분류로 등록된 인원의 출력일지 합계(기본+연장+추가+주월차)를 집계 · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 작업분류 목록은 작업일보의 ⚙️작업분류 설정(cats_by_menu)을 그대로 따라가며, 같은 이름이라도 메뉴가 다르면 다른 행입니다</div>
+      <div class="note">P(계획)=작업분류별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출력일지 합계(기본+연장+추가+주월차)를 <b>그날 작업일보에 기록된 작업분류</b> 기준으로 집계 (작업일보에 분류가 없는 옛 기록은 명단의 현재 분류를 씁니다. 퇴사자가 남긴 과거 실적도 포함됩니다) · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 작업분류 목록은 작업일보의 ⚙️작업분류 설정(cats_by_menu)을 그대로 따라가며, 같은 이름이라도 메뉴가 다르면 다른 행입니다 · <b>A/F 칸 색</b>은 그 칸의 계획 대비 달성도입니다 — <span style="background:#E8F6EE;padding:0 5px;">90% 이상</span> <span style="background:#FDF3E3;padding:0 5px;">60~90%</span> <span style="background:#FDECEA;padding:0 5px;">60% 미만</span> <span style="background:#EEF1F4;padding:0 5px;">계획 외 투입</span> (오른쪽 달성률 배지와 같은 기준)</div>
     </div>
   </div>
 
@@ -528,6 +535,7 @@ var positionPlanQty={};
 var catPlanQty={};   // 물량소화계획(cat 탭) 계획인원 — app_settings.cat_plan_qty (직책 쪽과 별개)
 var materialPlan=[];
 var membersList=[];
+var membersById={};   // 퇴사자 포함 전체 — 실적 집계 전용(화면 목록은 membersList를 쓴다)
 var attByMemberDate={};   // member_id -> date -> {checkIn,overtime}
 var manualByKey={};       // "member_id|date" -> {extra,leave}
 var autoLeaveByMember={}; // member_id -> date -> 그 날짜에 자동 발생한 주차+월차 개수(buildAutoLeave)
@@ -1033,6 +1041,10 @@ async function loadMembers(){
   });
   if(res.error){ showToast('명단을 불러오지 못했습니다','var(--err)'); return; }
   membersList = (res.data||[]).filter(function(m){ return m.active !== false; });
+  /* 퇴사자까지 포함한 조회용 색인(2026-08-13). membersList는 재직자만 담아 화면·조원 선택에 쓰고,
+     실적(A/F) 집계는 이쪽을 본다 — 퇴사자가 남긴 과거 출력이 A/F에서 통째로 사라지던 문제 때문. */
+  membersById = {};
+  (res.data||[]).forEach(function(m){ membersById[m.id] = m; });
   renderMigBanner();
 }
 
@@ -1051,6 +1063,13 @@ function applyReportRows(rows){
          되살아나는" 문제가 있었다(2026-08-12). 기록이 있는 행을 그대로 따라가게 한다.
          기존 기록이 있는 행을 우선하고, 빈 항목만 있는 행으로는 덮어쓰지 않는다. */
       if((c.checkInAt || c.overtimeCheckAt) || !cur.team) cur.team = row.team;
+      /* 작업일보가 기록해 둔 "그날의" 직책·공종·작업분류를 그대로 보관한다(2026-08-13).
+         예전엔 이 세 값을 버리고 실적을 명단의 현재 값으로 집계해서, 작업분류를 바꾸면
+         과거 실적까지 소급해 새 분류로 옮겨갔다. 값이 비어 있는 옛 기록도 있으므로
+         (전체 crew 중 일부만 cat을 갖고 있음) 있을 때만 덮어쓰고, 없으면 명단 값으로 넘어간다. */
+      if(c.position) cur.position = c.position;
+      if(c.menu) cur.menu = c.menu;
+      if(c.cat) cur.cat = c.cat;
       attByMemberDate[c.member_id][row.date] = cur;
     });
   });
@@ -1544,24 +1563,46 @@ function mdOnDay(memberId, dateStr){
 // membersList를 훑는" 구조라 기간이 길어질수록(특히 일별 모드) 느려짐(2026-08-07, 성능 개선).
 // 세 출처(출근/연장 기록, 수동입력, 자동 주월차) 중 어느 하나라도 값이 있는 날은 다 훑어야 하므로
 // 사람별로 "값이 있을 수 있는 날짜" 집합을 먼저 만든 뒤 mdOnDay로 한 번에 더함.
-function buildPositionDayCounts(){
+/* 날짜별 실적(A/F) 집계. keyOf가 "그날 기록(snap)"과 "명단(mem)"을 받아 행 키를 정한다 —
+   직책판과 작업분류판이 순회 로직을 공유하게 해서, 한쪽만 고쳐지는 일이 없게 한다.
+   2026-08-13 변경 두 가지:
+     · membersList(재직자) 대신 실제로 기록이 있는 사람을 전부 돈다 — 퇴사자 실적이 사라지던 문제.
+     · 행 키를 명단의 현재 값이 아니라 그날 작업일보 기록에서 먼저 찾는다 — 분류를 바꿔도 과거가 안 흔들린다. */
+/* 계획 대비 실적을 조건부서식 클래스로 바꾼다. 임계값(90%/60%)은 달성률 배지와 같은 값이며,
+   badgeClsFor와 한 곳에서 관리해 둘이 어긋나지 않게 한다. */
+var RATE_OK = 0.9, RATE_WARN = 0.6;
+function badgeClsFor(rate){ return rate>=RATE_OK*100 ? 'ok' : (rate>=RATE_WARN*100 ? 'warn' : 'err'); }
+function cfClass(plan, act){
+  plan = +plan || 0; act = +act || 0;
+  if(plan<=0) return act>0 ? 'cf-out' : '';   // 계획이 없으면 달성률을 따질 수 없다
+  if(act<=0) return 'cf-err';
+  if(act >= plan*RATE_OK) return 'cf-ok';
+  if(act >= plan*RATE_WARN) return 'cf-warn';
+  return 'cf-err';
+}
+function buildDayCounts(keyOf){
   var datesByMember = {};
   function mark(id, d){ (datesByMember[id] = datesByMember[id] || {})[d] = 1; }
   Object.keys(attByMemberDate).forEach(function(id){ Object.keys(attByMemberDate[id]).forEach(function(d){ mark(id,d); }); });
   Object.keys(autoLeaveByMember).forEach(function(id){ Object.keys(autoLeaveByMember[id]).forEach(function(d){ mark(id,d); }); });
   Object.keys(manualByKey).forEach(function(k){ var i=k.indexOf('|'); mark(k.slice(0,i), k.slice(i+1)); });
   var m={};
-  membersList.forEach(function(mem){
-    var dates = datesByMember[mem.id];
-    if(!dates) return;
-    Object.keys(dates).forEach(function(d){
-      var v = mdOnDay(mem.id, d);
+  Object.keys(datesByMember).forEach(function(id){
+    var mem = membersById[id] || {};
+    var byDate = attByMemberDate[id] || {};
+    Object.keys(datesByMember[id]).forEach(function(d){
+      var v = mdOnDay(id, d);
       if(!v) return;
+      var key = keyOf(byDate[d] || {}, mem);
+      if(!key) return;   // 직책·분류를 어디서도 못 찾으면 어느 행에도 못 넣는다
       if(!m[d]) m[d]={};
-      m[d][mem.position] = (m[d][mem.position]||0) + v;
+      m[d][key] = (m[d][key]||0) + v;
     });
   });
   return m;
+}
+function buildPositionDayCounts(){
+  return buildDayCounts(function(snap, mem){ return snap.position || mem.position; });
 }
 function renderPositionTable(cols, renderCount){
   /* 계획인원 수정은 일별 모드에서만 — 지금 보고 있는 달에 저장한다(2026-08-11 수정).
@@ -1608,7 +1649,8 @@ function renderPositionTable(cols, renderCount){
       planRow += '<td class="'+(c.cls||'')+'">'+(dayPlanSum||'')+'</td>';
       var actCount = actCountFor(pos, c);
       actTotal += actCount;
-      actRow += '<td class="'+(c.cls||'')+'">'+(actCount||'')+'</td>';
+      // 계획(P) 행은 입력값이라 색을 넣지 않는다 — 실적 행에만 조건부서식을 건다.
+      actRow += '<td class="'+((c.cls||'')+' '+cfClass(dayPlanSum, actCount)).trim()+'">'+(actCount||'')+'</td>';
     });
     // 합계/달성률은 화면에 아직 안 그려진 열도 포함해서(cols 전체 기준) 항상 정확하게 계산함.
     hiddenCols.forEach(function(c){
@@ -1616,12 +1658,13 @@ function renderPositionTable(cols, renderCount){
       actTotal += actCountFor(pos, c);
     });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
-    var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
+    var badgeCls = badgeClsFor(rate);
+    var totalCf = cfClass(planTotal, actTotal);
     // autocomplete="off": 계획인원 입력칸에 이전에 쳤던 숫자들이 브라우저 자동완성 드롭다운으로 뜨는데, 좁은
     // 표 칸(overflow:hidden) 안에 있다 보니 그 목록이 테두리선에 가려 다 안 보이던 문제 — 아예 꺼서 없앰(2026-08-07).
     var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
     return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
-      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
+      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
   }
   if(!cols.length){
     html += '<tr><td colspan="4" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';   // 이 표는 라벨2+합계+달성률 = 4칸
@@ -1665,26 +1708,13 @@ function catRowList(){
   catRowsCache = out;
   return out;
 }
-// buildPositionDayCounts의 작업분류판 — 집계 키만 mem.position에서 메뉴|작업분류로 바꿨다.
+/* buildPositionDayCounts의 작업분류판. 메뉴와 분류를 따로 되짚는 이유는, 옛 기록이 둘 중
+   하나만 갖고 있는 경우가 실제로 있기 때문이다(전체 crew 중 일부만 cat이 채워져 있음). */
 function buildCatDayCounts(){
-  var datesByMember = {};
-  function mark(id, d){ (datesByMember[id] = datesByMember[id] || {})[d] = 1; }
-  Object.keys(attByMemberDate).forEach(function(id){ Object.keys(attByMemberDate[id]).forEach(function(d){ mark(id,d); }); });
-  Object.keys(autoLeaveByMember).forEach(function(id){ Object.keys(autoLeaveByMember[id]).forEach(function(d){ mark(id,d); }); });
-  Object.keys(manualByKey).forEach(function(k){ var i=k.indexOf('|'); mark(k.slice(0,i), k.slice(i+1)); });
-  var m={};
-  membersList.forEach(function(mem){
-    var dates = datesByMember[mem.id];
-    if(!dates) return;
-    var key = catKey(mem.menu, mem.cat);
-    Object.keys(dates).forEach(function(d){
-      var v = mdOnDay(mem.id, d);
-      if(!v) return;
-      if(!m[d]) m[d]={};
-      m[d][key] = (m[d][key]||0) + v;
-    });
+  return buildDayCounts(function(snap, mem){
+    var menu = snap.menu || mem.menu, cat = snap.cat || mem.cat;
+    return (menu || cat) ? catKey(menu, cat) : '';
   });
-  return m;
 }
 function renderCatTable(cols, renderCount){
   var editMonthStr = (viewMode==='day' && dayMonth) ? dayMonth : (appSettings.report_start_date||'').slice(0,7);
@@ -1726,16 +1756,17 @@ function renderCatTable(cols, renderCount){
       var p = dayPlanSumFor(key, c); planTotal += p;
       planRow += '<td class="'+(c.cls||'')+'">'+(p||'')+'</td>';
       var a = actCountFor(key, c); actTotal += a;
-      actRow += '<td class="'+(c.cls||'')+'">'+(a||'')+'</td>';
+      actRow += '<td class="'+((c.cls||'')+' '+cfClass(p, a)).trim()+'">'+(a||'')+'</td>';
     });
     hiddenCols.forEach(function(c){ planTotal += dayPlanSumFor(key, c); actTotal += actCountFor(key, c); });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
-    var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
+    var badgeCls = badgeClsFor(rate);
+    var totalCf = cfClass(planTotal, actTotal);
     var editCell = viewMode==='day'
       ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="saveCatPlanQty('+idx+',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' '+esc(row.cat)+' 1일 계획인원(M/D)">')
       : '';
     return '<tr><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
-      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
+      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
   }
   var rows = catRowList();
   if(!cols.length || !rows.length){
