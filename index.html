@@ -241,14 +241,15 @@ if(isMobileDevice){
 </div>
 
 <div class="tab-bar" id="tabBar">
+  <!-- 탭 순서·이름은 2026-08-13 사용자 지시. data-tab 키는 코드 식별자라 이름이 바뀌어도 그대로 둔다
+       (pos = 옛 "공종별 인원투입", 지금 이름은 "일별투입계획"). -->
   <button class="tab-btn active" data-tab="att" onclick="switchTab('att')">출력일지</button>
-  <button class="tab-btn" data-tab="pos" onclick="switchTab('pos')">공종별 인원투입</button>
-  <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
+  <button class="tab-btn" data-tab="pos" onclick="switchTab('pos')">일별투입계획</button>
+  <!-- 작업별투입계획(2026-08-13 신규) — 일별투입계획과 서식이 완전히 같고, 행 기준만
+       직책 -> 작업분류로 바꾼 화면이다. -->
+  <button class="tab-btn" data-tab="cat" onclick="switchTab('cat')">작업별투입계획</button>
   <button class="tab-btn" data-tab="mat" onclick="switchTab('mat')">물량소화계획</button>
   <button class="tab-btn" data-tab="mob" onclick="switchTab('mob')">인원동원계획</button>
-  <!-- 자재관리는 별도 앱(/material/)을 iframe으로 그대로 띄운다(2026-08-11). 코드를 합치지 않아
-       CSS·전역변수 충돌이 없고, 자재관리 쪽 수정도 지금처럼 그 저장소에서만 하면 된다. -->
-  <button class="tab-btn" data-tab="mtl" onclick="switchTab('mtl')">자재관리</button>
   <!-- 공정관리는 두 화면(공정률/CHECK LIST)을 각각 탭으로 둔다. iframe은 하나만 두고
        안쪽 탭만 바꾼다(같은 도메인이라 showTab을 직접 부를 수 있음) — 두 개를 띄우면
        같은 데이터를 두 번 조회하게 된다. -->
@@ -256,6 +257,10 @@ if(isMobileDevice){
   <!-- 화면 이름은 "체크리스트"로 통일(2026-08-12) — 작업일보 관리자 화면·공정관리 앱과 같다.
        탭 키(data-tab="chk")와 iframe에 넘기는 값('check')은 코드 식별자라 그대로 둔다. -->
   <button class="tab-btn" data-tab="chk" onclick="switchTab('chk')">체크리스트</button>
+  <!-- 자재관리는 별도 앱(/material/)을 iframe으로 그대로 띄운다(2026-08-11). 코드를 합치지 않아
+       CSS·전역변수 충돌이 없고, 자재관리 쪽 수정도 지금처럼 그 저장소에서만 하면 된다. -->
+  <button class="tab-btn" data-tab="mtl" onclick="switchTab('mtl')">자재관리</button>
+  <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
 </div>
 
 <div class="container">
@@ -305,6 +310,31 @@ if(isMobileDevice){
         <div class="tw-body-scroll"><div id="posTableWrap">불러오는 중...</div></div>
       </div>
       <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=근로자 명단에 그 직책으로 등록된 인원의 출력일지 합계(기본+연장+추가+주월차)를 집계 · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 일별은 월 선택기로 고른 한 달만, 주간/월간은 예상 시작일~완료일 전체를 합산해 보여주는 조회 전용 화면입니다</div>
+    </div>
+  </div>
+
+  <!-- 작업별투입계획(2026-08-13 신규) — 위 일별투입계획(panel-pos)과 서식·조작이 완전히 같다.
+       다른 점은 행 기준뿐: 직책(position) -> 작업분류(cat). 계획값은 app_settings.cat_plan_qty에
+       저장하며, 직책 쪽(position_plan_qty)과는 완전히 별개다. -->
+  <div class="tab-panel" id="panel-cat">
+    <div class="card">
+      <h2 id="catTitle">일별 작업별투입계획 및 실투입비교</h2>
+      <div class="toolbar">
+        <div class="seg" id="catSeg">
+          <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
+          <button type="button" class="seg-btn" data-mode="week" onclick="setViewMode('week')">주간</button>
+          <button type="button" class="seg-btn" data-mode="month" onclick="setViewMode('month')">월간</button>
+        </div>
+        <span class="month-nav" id="catMonthNav"></span>
+        <label>예상 시작일</label> <input type="date" id="catStartDate" class="f" onchange="onReportRangeInput('start', this.value)">
+        <label>완료일</label> <input type="date" id="catEndDate" class="f" onchange="onReportRangeInput('end', this.value)">
+        <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
+      </div>
+      <div class="tablewrap tw-split">
+        <div class="tw-head-clip"><div id="catTableHead"></div></div>
+        <div class="tw-body-scroll"><div id="catTableWrap">불러오는 중...</div></div>
+      </div>
+      <div class="note">P(계획)=작업분류별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=근로자 명단에 그 작업분류로 등록된 인원의 출력일지 합계(기본+연장+추가+주월차)를 집계 · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 작업분류 목록은 작업일보의 ⚙️작업분류 설정(cats_by_menu)을 그대로 따라가며, 같은 이름이라도 메뉴가 다르면 다른 행입니다</div>
     </div>
   </div>
 
@@ -493,6 +523,7 @@ function sikongUnitOf(cat){
 var appSettings={};
 var holidaysExtra={};
 var positionPlanQty={};
+var catPlanQty={};   // 작업별투입계획 계획인원 — app_settings.cat_plan_qty (직책 쪽과 별개)
 var materialPlan=[];
 var membersList=[];
 var attByMemberDate={};   // member_id -> date -> {checkIn,overtime}
@@ -506,7 +537,7 @@ var fetchedRangeKey=null;   // 마지막으로 서버에서 받아온 예상 시
 // 셀 수가 수십만 개까지 늘어남) 초기 렌더링이 몇 초씩 걸리고 이후에도 버벅임 — 처음엔 일부만 그리고, 가로 스크롤로
 // 끝에 가까워지면 그만큼만 더 그려 넣는 방식(가상 스크롤)으로 실제 DOM 크기를 항상 작게 유지함(2026-08-07).
 var VIRT_THRESHOLD=120, VIRT_CHUNK=150, VIRT_LOOKAHEAD_PX=1600;
-var attRenderCount=0, posRenderCount=0;
+var attRenderCount=0, posRenderCount=0, catRenderCount=0;
 
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function pad(n){ return n<10?'0'+n:''+n; }
@@ -523,10 +554,11 @@ function switchTab(name){
   document.getElementById('panel-'+panelName).classList.add('active');
   // 숨겨진 탭은 폭이 0이라 "창을 꽉 채우는" 표 폭을 계산할 수 없음(로드 시점엔 공종별 인원투입 탭이 숨어 있음) —
   // 탭이 실제로 보이게 된 뒤에 한 번 더 그려야 제 폭이 나옴(2026-08-11).
-  if((name==='att'||name==='pos') && fetchedRangeKey){
+  if((name==='att'||name==='pos'||name==='cat') && fetchedRangeKey){
     var cols = buildColumns();
     if(name==='att') renderAttendanceTable(cols, attRenderCount);
-    else renderPositionTable(cols, posRenderCount);
+    else if(name==='pos') renderPositionTable(cols, posRenderCount);
+    else renderCatTable(cols, catRenderCount);
   }
   if(name==='mem') renderMembersTab();
   if(name==='mat') renderMaterialTable();
@@ -653,15 +685,17 @@ function maybeGrowVirtualTable(kind, bodyScroll){
   if(viewMode!=='day') return;
   var cols = buildColumns();
   if(cols.length<=VIRT_THRESHOLD) return;
-  var wrapId = kind==='att' ? 'attTableWrap' : 'posTableWrap';
-  var renderCount = kind==='att' ? attRenderCount : posRenderCount;
+  var wrapId = kind==='att' ? 'attTableWrap' : (kind==='cat' ? 'catTableWrap' : 'posTableWrap');
+  var renderCount = kind==='att' ? attRenderCount : (kind==='cat' ? catRenderCount : posRenderCount);
   if(renderCount>=cols.length) return;
   var dataW = dataColWidthForMode(wrapId, cols, kind==='att'?1:2);
   var renderedEdgePx = GRID_LBL1_W+GRID_LBL2_W+renderCount*dataW;
   if(bodyScroll.scrollLeft+bodyScroll.clientWidth+VIRT_LOOKAHEAD_PX < renderedEdgePx) return;
   var nextCount = Math.min(cols.length, renderCount+VIRT_CHUNK);
   var keepScroll = bodyScroll.scrollLeft;
-  if(kind==='att') renderAttendanceTable(cols, nextCount); else renderPositionTable(cols, nextCount);
+  if(kind==='att') renderAttendanceTable(cols, nextCount);
+  else if(kind==='cat') renderCatTable(cols, nextCount);
+  else renderPositionTable(cols, nextCount);
   bodyScroll.scrollLeft = keepScroll;   // 표 내용을 다시 그리는 동안 스크롤 위치가 흔들릴 수 있어 그대로 복원
 }
 // 페이지 자체는 스크롤 안 되게 막아뒀으니(overflow:hidden), 지금 활성 탭의 표 영역(.tablewrap) 높이를
@@ -687,10 +721,11 @@ window.addEventListener('resize', function(){
 function reflowActiveTable(){
   var activeBtn = document.querySelector('.tab-btn.active');
   var name = activeBtn ? activeBtn.dataset.tab : '';
-  if((name==='att'||name==='pos') && fetchedRangeKey){
+  if((name==='att'||name==='pos'||name==='cat') && fetchedRangeKey){
     var cols = buildColumns();
     if(name==='att') renderAttendanceTable(cols, attRenderCount);
-    else renderPositionTable(cols, posRenderCount);
+    else if(name==='pos') renderPositionTable(cols, posRenderCount);
+    else renderCatTable(cols, catRenderCount);
   } else if(name==='mob'){
     renderMobilizationTable();
   }
@@ -846,9 +881,11 @@ function buildColumnsUncached(range){
 }
 var ATT_TITLE_BY_MODE={day:'일별출력', week:'주간출력', month:'월간출력'};
 var POS_TITLE_BY_MODE={day:'일별 인원투입계획 및 실투입비교', week:'주간 인원투입계획 및 실투입비교', month:'월간 인원투입계획 및 실투입비교'};
+var CAT_TITLE_BY_MODE={day:'일별 작업별투입계획 및 실투입비교', week:'주간 작업별투입계획 및 실투입비교', month:'월간 작업별투입계획 및 실투입비교'};
 function updateSectionTitles(){
   document.getElementById('attTitle').textContent = ATT_TITLE_BY_MODE[viewMode];
   document.getElementById('posTitle').textContent = POS_TITLE_BY_MODE[viewMode];
+  document.getElementById('catTitle').textContent = CAT_TITLE_BY_MODE[viewMode];
 }
 /* 월 선택기 — 일별 모드에서만 보인다. 출력일지·공종별 인원투입 두 탭이 같은 달을 공유한다
    (지금도 일별/주간/월간 모드를 공유하는 것과 같은 방식). */
@@ -864,18 +901,19 @@ function renderMonthNav(){
       + '</select>'
       + '<button type="button" class="btn sm ghost" onclick="stepDayMonth(1)"'+(idx>=list.length-1?' disabled':'')+'>▶</button>'
     : '';
-  ['attMonthNav','posMonthNav'].forEach(function(id){
+  ['attMonthNav','posMonthNav','catMonthNav'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.innerHTML=html;
   });
 }
 /* 달만 바꾸는 건 서버 재조회가 필요 없다 — loadPeriodData가 예상 시작일~완료일 전체를 이미
    받아두었으므로(fetchedRangeKey) 화면만 다시 그린다. */
 function redrawPeriodTables(){
-  attRenderCount=0; posRenderCount=0;
+  attRenderCount=0; posRenderCount=0; catRenderCount=0;
   renderMonthNav();
   var cols = buildColumns();
   renderAttendanceTable(cols);
   renderPositionTable(cols);
+  renderCatTable(cols);
   fitTableWrapHeight();
 }
 function setDayMonth(ym){
@@ -903,10 +941,11 @@ function setViewMode(mode){
   // 다시 조회하던 것을 없애 전환 속도를 크게 개선(2026-08-07).
   var range = reportRange();
   if(fetchedRangeKey===(range.start+'|'+range.end)){
-    attRenderCount=0; posRenderCount=0;   // 모드가 바뀌면 가상 스크롤 펼침 정도는 처음부터 다시 시작
+    attRenderCount=0; posRenderCount=0; catRenderCount=0;   // 모드가 바뀌면 가상 스크롤 펼침 정도는 처음부터 다시 시작
     var cols = buildColumns();
     renderAttendanceTable(cols);
     renderPositionTable(cols);
+    renderCatTable(cols);
     fitTableWrapHeight();
   } else {
     loadPeriodData();
@@ -960,6 +999,7 @@ async function loadAppSettings(){
   holidaysExtra = appSettings.holidays_extra || {};
   invalidateHolidays();   // 서버에서 받은 공휴일로 바뀌었으니 날짜 판정·열 캐시를 버린다
   positionPlanQty = appSettings.position_plan_qty || {};
+  catPlanQty = appSettings.cat_plan_qty || {};
   materialPlan = Array.isArray(appSettings.material_plan) ? appSettings.material_plan : null;
   if(appSettings.material_plan === undefined) matColumnOk = false;
   if(appSettings.report_start_date === undefined) rangeColumnOk = false;
@@ -1066,11 +1106,12 @@ async function loadPeriodData(){
   }
   autoLeaveByMember = buildAutoLeave();   // 출근 기록·공휴일·기간이 모두 확정된 뒤라야 주/월차를 판정할 수 있음
   fetchedRangeKey = range.start+'|'+range.end;
-  attRenderCount = 0; posRenderCount = 0;   // 새로 받아온 데이터로 다시 그리는 것이므로 가상 스크롤도 처음부터
+  attRenderCount = 0; posRenderCount = 0; catRenderCount = 0;   // 새로 받아온 데이터로 다시 그리는 것이므로 가상 스크롤도 처음부터
   renderMonthNav();   // 기간이 바뀌면 고를 수 있는 달 목록도 바뀐다
   renderMigBanner();
   renderAttendanceTable(cols);
   renderPositionTable(cols);
+  renderCatTable(cols);
   fitTableWrapHeight();
 }
 
@@ -1602,6 +1643,132 @@ async function savePositionPlanQty(pos, val, monthStr){
   showToast('✅ 저장됨','var(--ok)');
   renderPositionTable(buildColumns(), posRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
   renderMobilizationTable();   // 같은 계획인원(position_plan_qty) 데이터를 공유하는 화면이라 같이 갱신
+}
+
+// ---------- 작업별투입계획 및 실투입 비교 (2026-08-13 신규) ----------
+/* 위 renderPositionTable과 서식·조작이 같고 행 기준만 직책 -> 작업분류다.
+   같은 이름의 작업분류가 여러 메뉴에 걸쳐 있으므로(예: 'INSTRUMENT'는 시공·자재·품질에 다 있음)
+   행 키는 반드시 "메뉴|작업분류"로 잡는다 — 이름만 쓰면 세 메뉴의 인원이 한 줄에 섞인다. */
+function catKey(menu, cat){ return (menu||'') + '|' + (cat||''); }
+/* 그린 행 목록을 그대로 들고 있는다 — 입력칸의 onchange에 작업분류 이름을 문자열로 박아 넣으면
+   esc()가 만든 &#39; 를 HTML 파서가 다시 '로 풀어버려 JS 문자열이 깨진다. 이름 대신 행 번호를
+   넘기고 여기서 찾아 쓰면 이름에 어떤 문자가 들어와도 안전하다. */
+var catRowsCache = [];
+function catRowList(){
+  var byMenu = appSettings.cats_by_menu || {};
+  var out = [];
+  Object.keys(byMenu).forEach(function(menu){
+    (byMenu[menu] || []).forEach(function(cat){ out.push({menu:menu, cat:cat, key:catKey(menu,cat)}); });
+  });
+  catRowsCache = out;
+  return out;
+}
+// buildPositionDayCounts의 작업분류판 — 집계 키만 mem.position에서 메뉴|작업분류로 바꿨다.
+function buildCatDayCounts(){
+  var datesByMember = {};
+  function mark(id, d){ (datesByMember[id] = datesByMember[id] || {})[d] = 1; }
+  Object.keys(attByMemberDate).forEach(function(id){ Object.keys(attByMemberDate[id]).forEach(function(d){ mark(id,d); }); });
+  Object.keys(autoLeaveByMember).forEach(function(id){ Object.keys(autoLeaveByMember[id]).forEach(function(d){ mark(id,d); }); });
+  Object.keys(manualByKey).forEach(function(k){ var i=k.indexOf('|'); mark(k.slice(0,i), k.slice(i+1)); });
+  var m={};
+  membersList.forEach(function(mem){
+    var dates = datesByMember[mem.id];
+    if(!dates) return;
+    var key = catKey(mem.menu, mem.cat);
+    Object.keys(dates).forEach(function(d){
+      var v = mdOnDay(mem.id, d);
+      if(!v) return;
+      if(!m[d]) m[d]={};
+      m[d][key] = (m[d][key]||0) + v;
+    });
+  });
+  return m;
+}
+function renderCatTable(cols, renderCount){
+  var editMonthStr = (viewMode==='day' && dayMonth) ? dayMonth : (appSettings.report_start_date||'').slice(0,7);
+  var editMonthPlan = catPlanQty[editMonthStr] || {};
+  var dataW = dataColWidthForMode('catTableWrap', cols, 2);
+  var groupRow = groupRowFor(cols, 2);
+  var rowspan = groupRow ? 3 : 2;
+  var tableW = gridTableWidth(cols.length,2,dataW);
+  if(viewMode!=='day') tableW = stretchTableWidth('catTableWrap', tableW);
+  var cg = colGroupHtml(cols.length,2,dataW);
+  var virtualize = viewMode==='day' && cols.length>VIRT_THRESHOLD;
+  var rc = virtualize ? Math.min(renderCount||VIRT_CHUNK, cols.length) : cols.length;
+  catRenderCount = rc;
+  var visCols = virtualize ? cols.slice(0, rc) : cols;
+  var hiddenCols = cols.slice(visCols.length);
+  var hiddenCount = hiddenCols.length;
+  var hiddenHead = hiddenCount ? '<th colspan="'+hiddenCount+'" class="vlazy">가로로 스크롤하면 표시됩니다 →</th>' : '';
+  var hiddenBody = hiddenCount ? '<td colspan="'+hiddenCount+'" class="vlazy"></td>' : '';
+  var catDayCounts = buildCatDayCounts();
+  var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
+    +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">작업분류</th><th class="lbl2" rowspan="'+rowspan+'">구분</th><th colspan="'+(cols.length+2)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
+    +groupRow
+    +'<tr>'+colHeadHtml(visCols)+hiddenHead+'<th>합계</th><th>달성률</th></tr></thead></table>';
+  var html = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg+'<tbody>';
+  function dayPlanSumFor(key, c){
+    return c.days.reduce(function(s,d){
+      if(isNonWorkDay(d)) return s;
+      return s + (+((catPlanQty[d.slice(0,7)]||{})[key]||0));
+    },0);
+  }
+  function actCountFor(key, c){
+    return c.days.reduce(function(s,d){ return s + ((catDayCounts[d]||{})[key]||0); },0);
+  }
+  function catRowHtml(row, idx){
+    var key = row.key;
+    var editVal = +(editMonthPlan[key]||0);
+    var planTotal=0, actTotal=0, planRow='', actRow='';
+    visCols.forEach(function(c){
+      var p = dayPlanSumFor(key, c); planTotal += p;
+      planRow += '<td class="'+(c.cls||'')+'">'+(p||'')+'</td>';
+      var a = actCountFor(key, c); actTotal += a;
+      actRow += '<td class="'+(c.cls||'')+'">'+(a||'')+'</td>';
+    });
+    hiddenCols.forEach(function(c){ planTotal += dayPlanSumFor(key, c); actTotal += actCountFor(key, c); });
+    var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
+    var badgeCls = rate>=90?'ok':(rate>=60?'warn':'err');
+    var editCell = viewMode==='day'
+      ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="saveCatPlanQty('+idx+',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' '+esc(row.cat)+' 1일 계획인원(M/D)">')
+      : '';
+    return '<tr><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td>'+(actTotal||'')+'</td></tr>';
+  }
+  var rows = catRowList();
+  if(!cols.length || !rows.length){
+    html += '<tr><td colspan="4" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
+  } else {
+    // 직책 화면이 간접/직접으로 묶는 것처럼, 여기서는 메뉴(시공·안전·자재·품질·화기/유도)로 묶는다.
+    var byMenu = {};
+    rows.forEach(function(r,i){ r._i = i; (byMenu[r.menu] = byMenu[r.menu] || []).push(r); });
+    Object.keys(byMenu).forEach(function(menu){
+      html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">'+esc(menu)+'</span></td></tr>';
+      byMenu[menu].forEach(function(r){ html += catRowHtml(r, r._i); });
+    });
+  }
+  html += '</tbody></table>';
+  document.getElementById('catTableHead').innerHTML = headHtml;
+  document.getElementById('catTableWrap').innerHTML = html;
+  bindHeaderSync(document.getElementById('catTableWrap'), 'cat');
+  syncHeadClipGutter('catTableWrap');
+}
+async function saveCatPlanQty(idx, val, monthStr){
+  var row = catRowsCache[idx];
+  if(!row) return;
+  var key = row.key;
+  if(!catPlanQty[monthStr]) catPlanQty[monthStr] = {};
+  catPlanQty[monthStr][key] = +val || 0;
+  var res = await sb.from('app_settings').update({cat_plan_qty:catPlanQty}).eq('id','global');
+  if(res.error){
+    // app_settings에 cat_plan_qty 칸이 아직 없으면 PostgREST가 PGRST204로 거절한다 — 원인을 바로 알 수 있게 안내한다.
+    var miss = /cat_plan_qty/.test(res.error.message||'');
+    showToast(miss ? '⚠️ 저장할 칸이 없습니다 — Supabase app_settings에 cat_plan_qty 열을 먼저 추가해 주세요'
+                   : '⚠️ 저장 실패: '+res.error.message, 'var(--err)');
+    return;
+  }
+  showToast('✅ 저장됨','var(--ok)');
+  renderCatTable(buildColumns(), catRenderCount);
 }
 
 // ---------- 인원동원계획(월별, 계획인원만) ----------
