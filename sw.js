@@ -1,6 +1,6 @@
 // 이 파일 내용이 바뀌어야 브라우저가 새 버전을 감지해 업데이트 배너를 띄운다.
 // index.html/login.html 배포 시 아래 버전 문자열을 함께 올려줄 것.
-const SW_VERSION = '2026-08-23-1';
+const SW_VERSION = '2026-08-23-2';
 const CACHE = 'wr-status-' + SW_VERSION;
 
 /* 오프라인 대비 캐시(2026-08-23 — report/shoot에 2026-08-09에 적용된 것과 동일한 방식으로 맞춤).
