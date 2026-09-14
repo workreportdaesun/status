@@ -1040,6 +1040,7 @@ async function loadAppSettings(){
   var res = await sb.from('app_settings').select('*').eq('id','global').single();
   if(res.error){ showToast('설정을 불러오지 못했습니다','var(--err)'); return; }
   appSettings = res.data || {};
+  lastCatStructKey = catStructKeyOf(appSettings);
   holidaysExtra = appSettings.holidays_extra || {};
   invalidateHolidays();   // 서버에서 받은 공휴일로 바뀌었으니 날짜 판정·열 캐시를 버린다
   positionPlanQty = appSettings.position_plan_qty || {};
@@ -1052,6 +1053,28 @@ async function loadAppSettings(){
     appSettings.report_start_date = appSettings.report_start_date || def.start;
     appSettings.report_end_date = appSettings.report_end_date || def.finish;
   }
+}
+/* 작업일보 ⚙️설정에서 작업분류/단위를 바꾸면 알림만 즉시 띄우고, 실제 반영은 appSettings를
+   갱신해두는 선까지만 한다 — sikongCategories()/sikongUnitOf()가 appSettings를 그때그때
+   읽으므로 다음에 그 탭을 다시 그릴 때부터는 자동으로 새 값을 쓴다. 지금 계획인원을 입력
+   중인 표까지 강제로 다시 그리면 입력 중이던 값이 날아갈 수 있어(2026-09-14), 그 탭은
+   사용자가 다시 열 때 자연히 새로고침되는 쪽을 택한다. */
+var lastCatStructKey='';
+function catStructKeyOf(o){ return JSON.stringify([o.cats_by_menu||{}, o.item_unit||{}]); }
+function subscribeSettingsRealtime(){
+  if(!sb || !sb.channel) return;
+  sb.channel('app_settings_changes_status')
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_settings',filter:'id=eq.global'},function(payload){
+      if(!payload.new) return;
+      var k=catStructKeyOf(payload.new);
+      if(lastCatStructKey && k!==lastCatStructKey){
+        appSettings.cats_by_menu = payload.new.cats_by_menu || appSettings.cats_by_menu;
+        appSettings.item_unit = payload.new.item_unit || appSettings.item_unit;
+        showToast('⚙️ 작업분류/규격 설정이 업데이트되었습니다 — 탭을 다시 열면 반영됩니다', 'var(--brand-2)');
+      }
+      lastCatStructKey=k;
+    })
+    .subscribe();
 }
 async function onReportRangeInput(which, v){
   if(which==='start') appSettings.report_start_date = v;
@@ -2234,7 +2257,7 @@ async function saveMaterialPlan(){
   showToast('✅ 저장됨','var(--ok)');
 }
 
-if(!isMobileDevice) init();
+if(!isMobileDevice){ init(); subscribeSettingsRealtime(); }
 
 /* 서비스워커 자동 업데이트 — report/shoot과 동일한 패턴(2026-08-12 추가).
    sw.js 파일은 처음부터 있었고 배포할 때마다 SW_VERSION도 올려왔는데, 정작 등록하는 코드가
