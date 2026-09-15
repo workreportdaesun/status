@@ -621,10 +621,16 @@ function maybeGrowVirtualTable(kind, bodyScroll){
 function fitTableWrapHeight(){
   var panel = document.querySelector('.tab-panel.active');
   if(!panel) return;
-  var wrap = panel.querySelector('.tablewrap');
+  // 근로자명단처럼 카드가 두 개 이상이면 .tablewrap도 여러 개다 — 화면을 꽉 채워야 하는 건
+  // 항상 마지막(본문) 표이고, 위에 얹힌 작은 요약표(작업분류별 인원집계 등)는 자기 높이(inline
+  // max-height)를 그대로 둬야 한다. 첫 번째만 집으면 요약표가 화면 전체로 늘어나 본문 표가
+  // 뷰포트 밖으로 밀려난다(2026-09-15 실측 — 페이지 자체는 overflow:hidden이라 스크롤로도 못 봄).
+  var wraps = panel.querySelectorAll('.tablewrap');
+  var wrap = wraps.length ? wraps[wraps.length-1] : null;
   if(!wrap) return;
   var rect = wrap.getBoundingClientRect();
-  var note = panel.querySelector('.note');
+  var notes = panel.querySelectorAll('.note');
+  var note = notes.length ? notes[notes.length-1] : null;
   var bottomReserve = (note ? note.getBoundingClientRect().height : 0) + 14;
   var avail = window.innerHeight - rect.top - bottomReserve;
   var h = Math.max(160, Math.floor(avail));
