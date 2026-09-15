@@ -47,6 +47,9 @@ body{background:var(--bg); font-family:var(--font-body); color:var(--ink); font-
 .container{max-width:100%; padding:14px 20px;}   /* PC 전용 앱이라 화면 좌우를 다 채우도록 폭 제한을 없앰 */
 .tab-panel{display:none;}
 .tab-panel.active{display:block;}
+/* 근로자명단 탭 안의 하위탭(인원집계/명단) — 위 .tab-panel과 같은 on/off 패턴을 그대로 쓴다. */
+.mem-sub{display:none;}
+.mem-sub.active{display:block;}
 .card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,.05); margin-bottom:14px;}
 .card h2{font-size:16px; font-weight:800; color:var(--brand-1); margin:0 0 10px;}
 .toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
@@ -268,10 +271,9 @@ if(isMobileDevice){
   <!-- 공정률/체크리스트/자재관리는 각각 별도 앱(/progress/, /material/)을 iframe으로 끌어와 탭으로
        띄웠었는데(2026-08-11~13), 네비게이션(nav-fab.js)에 이미 그 앱들로 가는 메뉴가 따로 있어
        완전히 중복이라 2026-09-15에 걷어냄. 이 화면 고유 탭(계획/산출 관련)만 남긴다. -->
-  <!-- 인원집계는 원래 근로자명단 탭 위에 카드로 얹었었는데(2026-09-15), 한 탭 안에 표가 둘이 되면서
-       화면 꽉 채우기(fitTableWrapHeight)가 꼬여 근로자명단이 화면 밖으로 밀려나는 버그가 났다.
-       다른 탭들처럼 "탭 하나 = 표 하나"로 분리해 각자 전체 화면을 쓰게 한다. -->
-  <button class="tab-btn" data-tab="memsum" onclick="switchTab('memsum')">인원집계</button>
+  <!-- 인원집계는 근로자명단 탭 안에 하위탭(세그먼트)으로 둔다(2026-09-15) — 독립 탭으로
+       뺐다가(fitTableWrapHeight 버그를 고치려고) 다시 요청으로 하위탭으로 되돌림.
+       fitTableWrapHeight()는 "화면에 보이는" .tablewrap만 골라야 하므로 아래에서 따로 처리. -->
   <button class="tab-btn" data-tab="mem" onclick="switchTab('mem')">근로자명단</button>
 </div>
 
@@ -350,28 +352,32 @@ if(isMobileDevice){
     </div>
   </div>
 
-  <!-- 인원집계 -->
-  <div class="tab-panel" id="panel-memsum">
-    <div class="card">
-      <h2>작업분류별 인원집계</h2>
-      <div class="tablewrap"><div id="memCatSummaryWrap">불러오는 중...</div></div>
-      <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다.</div>
-    </div>
-  </div>
-
-  <!-- 근로자명단 -->
+  <!-- 근로자명단 (하위탭: 인원집계/명단) -->
   <div class="tab-panel" id="panel-mem">
-    <div class="card">
-      <h2>근로자명단</h2>
-      <!-- 총인원 텍스트는 검색바 오른쪽 끝으로 보낸다(margin-left:auto) — 2026-08-12 요청 -->
-      <div class="toolbar">
-        <input type="search" id="memSearch" class="f" style="width:280px;font-family:var(--font-body);"
-               placeholder="성명·직책·전화번호·공종·작업분류·AREA·소속 검색" oninput="renderMembersTab()">
-        <button class="btn sm ghost" onclick="clearMemSearch()">지우기</button>
-        <span style="font-size:12px;color:var(--lbl);margin-left:auto;" id="memCount"></span>
+    <div class="seg" id="memSubSeg" style="margin-bottom:14px;">
+      <button type="button" class="seg-btn active" data-sub="sum" onclick="switchMemSub('sum')">인원집계</button>
+      <button type="button" class="seg-btn" data-sub="list" onclick="switchMemSub('list')">명단</button>
+    </div>
+    <div class="mem-sub active" id="memSub-sum">
+      <div class="card">
+        <h2>작업분류별 인원집계</h2>
+        <div class="tablewrap"><div id="memCatSummaryWrap">불러오는 중...</div></div>
+        <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다. 관리자 분류는 직책별로 나누지 않고 "관리자" 한 줄로 묶어 보여줍니다.</div>
       </div>
-      <div class="tablewrap"><div id="memTableWrap">불러오는 중...</div></div>
-      <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 직책·작업분류·소속 수정은 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요.</div>
+    </div>
+    <div class="mem-sub" id="memSub-list">
+      <div class="card">
+        <h2>근로자명단</h2>
+        <!-- 총인원 텍스트는 검색바 오른쪽 끝으로 보낸다(margin-left:auto) — 2026-08-12 요청 -->
+        <div class="toolbar">
+          <input type="search" id="memSearch" class="f" style="width:280px;font-family:var(--font-body);"
+                 placeholder="성명·직책·전화번호·공종·작업분류·AREA·소속 검색" oninput="renderMembersTab()">
+          <button class="btn sm ghost" onclick="clearMemSearch()">지우기</button>
+          <span style="font-size:12px;color:var(--lbl);margin-left:auto;" id="memCount"></span>
+        </div>
+        <div class="tablewrap"><div id="memTableWrap">불러오는 중...</div></div>
+        <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 직책·작업분류·소속 수정은 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요.</div>
+      </div>
     </div>
   </div>
 
@@ -563,8 +569,11 @@ function switchTab(name){
     else if(name==='pos') renderPositionTable(cols, posRenderCount);
     else renderCatTable(cols, catRenderCount);
   }
-  if(name==='memsum') renderMemberCatSummary();
-  if(name==='mem') renderMembersTab();
+  if(name==='mem'){
+    // 근로자명단 탭은 하위탭(인원집계/명단)을 갖는다 — 마지막에 보고 있던 쪽을 그대로 다시 보여준다.
+    var curSub = document.querySelector('#memSubSeg .seg-btn.active');
+    switchMemSub(curSub ? curSub.dataset.sub : 'sum');
+  }
   if(name==='mat') renderMaterialTable();
   if(name==='mob') renderMobilizationTable();
   fitTableWrapHeight();
@@ -630,15 +639,16 @@ function maybeGrowVirtualTable(kind, bodyScroll){
 function fitTableWrapHeight(){
   var panel = document.querySelector('.tab-panel.active');
   if(!panel) return;
-  // 근로자명단처럼 카드가 두 개 이상이면 .tablewrap도 여러 개다 — 화면을 꽉 채워야 하는 건
-  // 항상 마지막(본문) 표이고, 위에 얹힌 작은 요약표(작업분류별 인원집계 등)는 자기 높이(inline
-  // max-height)를 그대로 둬야 한다. 첫 번째만 집으면 요약표가 화면 전체로 늘어나 본문 표가
-  // 뷰포트 밖으로 밀려난다(2026-09-15 실측 — 페이지 자체는 overflow:hidden이라 스크롤로도 못 봄).
-  var wraps = panel.querySelectorAll('.tablewrap');
+  // 근로자명단처럼 카드(하위탭 포함)가 두 개 이상이면 .tablewrap도 여러 개가 DOM에 같이 있다 —
+  // 화면에 실제로 "보이는" 것만 골라야 한다. 숨은 쪽(display:none)은 offsetParent가 null이라
+  // 이걸로 걸러낸다. 그냥 첫/마지막을 집으면 숨은 표가 걸리거나(높이 계산이 0), 보이는 표가
+  // 화면 밖으로 밀려난다(2026-09-15 실측 — 페이지 자체는 overflow:hidden이라 스크롤로도 못 봄).
+  function visible(el){ return el.offsetParent !== null; }
+  var wraps = Array.prototype.filter.call(panel.querySelectorAll('.tablewrap'), visible);
   var wrap = wraps.length ? wraps[wraps.length-1] : null;
   if(!wrap) return;
   var rect = wrap.getBoundingClientRect();
-  var notes = panel.querySelectorAll('.note');
+  var notes = Array.prototype.filter.call(panel.querySelectorAll('.note'), visible);
   var note = notes.length ? notes[notes.length-1] : null;
   var bottomReserve = (note ? note.getBoundingClientRect().height : 0) + 14;
   var avail = window.innerHeight - rect.top - bottomReserve;
@@ -1886,6 +1896,16 @@ function drawMobChart(){
 }
 
 // ---------- 근로자명단 ----------
+/* 하위탭(인원집계/명단) 전환 — 위 .tab-btn과 같은 패턴이지만 #memSubSeg 안에서만 동작한다.
+   fitTableWrapHeight()는 이 두 하위탭이 각자 .tablewrap을 갖고 있어도 "화면에 보이는" 것만
+   골라 쓰므로(2026-09-15), 여기서 굳이 숨긴 쪽을 따로 처리할 필요는 없다. */
+function switchMemSub(sub){
+  document.querySelectorAll('#memSubSeg .seg-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.sub===sub); });
+  document.querySelectorAll('.mem-sub').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('memSub-'+sub).classList.add('active');
+  if(sub==='sum') renderMemberCatSummary(); else renderMembersTab();
+  fitTableWrapHeight();
+}
 /* 검색은 표에 보이는 값(성명·직책·전화번호·공종·작업분류·AREA·소속)을 그대로 이어붙여
    부분일치로 찾는다 — 열을 따로 고르게 하지 않아도 "홍길동", "계장공", "1팀", "0100" 아무거나
    치면 걸린다. 전화번호는 하이픈을 빼고도 찾을 수 있게 숫자만 남긴 형태도 같이 넣는다. */
@@ -1899,12 +1919,12 @@ function clearMemSearch(){
   renderMembersTab();
 }
 /* 작업분류 × 직책 인원집계 — 검색창과 무관하게 항상 membersList(active!==false) 전체를 센다.
-   행(작업분류)은 물량소화산출과 같은 sikongCategories() 순서, 열(직책)은 membersSorted()와
-   같은 MGMT_POSITIONS+FIELD_POSITIONS 순서를 쓴다. 둘 다 실제로 등록된 값만 보여준다 —
-   관리자 분류는 MGMT_POSITIONS(현장소장·공무부장…)만, 나머지 분류는 FIELD_POSITIONS(팀장·
-   계장공·전공…)만 채워지는 구조라 전체 27개 직책을 다 열로 두면 대부분 빈 칸이라 표만
-   불필요하게 넓어진다(2026-09-15). 오른쪽 끝 "합계" 열과 맨 아래 "합계" 행은 각각 행/열 총합,
-   맨 오른쪽 아래 칸은 전체 인원수. */
+   행(작업분류)은 물량소화산출과 같은 sikongCategories() 순서, 열(직책)은 FIELD_POSITIONS(팀장·
+   계장공·전공·조공…) 순서만 쓴다. 관리자 분류(cat==='관리자')는 직책이 현장소장·공무부장 등
+   MGMT_POSITIONS라 제각각인데, 이걸 다 열로 펼치면 그 열은 관리자 행에서만 채워지고 나머지
+   21개 분류 행에서는 전부 빈 칸이라 표만 불필요하게 넓어진다 — 그래서 관리자는 직책별로
+   나누지 않고 행의 "합계" 칸 하나로만 뭉뚱그린다(2026-09-15 사용자 요청). 오른쪽 끝 "합계" 열과
+   맨 아래 "합계" 행은 각각 행/열 총합, 맨 오른쪽 아래 칸은 전체 인원수. */
 function renderMemberCatSummary(){
   var counts = {}, catTotals = {}, posTotals = {}, grand = 0;
   membersList.forEach(function(m){
@@ -1912,15 +1932,16 @@ function renderMemberCatSummary(){
     counts[cat] = counts[cat] || {};
     counts[cat][pos] = (counts[cat][pos]||0) + 1;
     catTotals[cat] = (catTotals[cat]||0) + 1;
-    posTotals[pos] = (posTotals[pos]||0) + 1;
+    // 관리자(MGMT_POSITIONS) 직책은 열로 안 쪼개므로 열 합계(posTotals)에도 넣지 않는다 —
+    // 안 그러면 "합계" 행에 관리자 직책들이 따로 열을 만들며 다시 나타난다.
+    if(MGMT_POSITIONS.indexOf(pos)===-1) posTotals[pos] = (posTotals[pos]||0) + 1;
     grand++;
   });
   var catOrderBase = sikongCategories();
   var catExtra = Object.keys(catTotals).filter(function(c){ return catOrderBase.indexOf(c)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
   var cats = catOrderBase.concat(catExtra).filter(function(c){ return catTotals[c]; });
-  var posOrderBase = MGMT_POSITIONS.concat(FIELD_POSITIONS);
-  var posExtra = Object.keys(posTotals).filter(function(p){ return posOrderBase.indexOf(p)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
-  var positions = posOrderBase.concat(posExtra).filter(function(p){ return posTotals[p]; });
+  var posExtra = Object.keys(posTotals).filter(function(p){ return FIELD_POSITIONS.indexOf(p)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  var positions = FIELD_POSITIONS.concat(posExtra).filter(function(p){ return posTotals[p]; });
 
   var headHtml = '<th style="text-align:left;">작업분류</th>'
     + positions.map(function(p){ return '<th>'+esc(p)+'</th>'; }).join('')
