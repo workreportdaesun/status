@@ -2143,7 +2143,9 @@ function renderMaterialTable(){
       +'<td><input class="txi" style="width:56px;" value="'+esc(r.unit||'')+'" onchange="updMat('+i+',\'unit\',this.value)"></td>'
       +'<td><input type="date" class="dtx" value="'+(r.start||'')+'" onchange="updMat('+i+',\'start\',this.value)"></td>'
       +'<td><input type="date" class="dtx" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
-      +'<td><input type="number" class="qi" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
+      // 계약물량은 다른 qi칸(보통 1~3자리 계획인원용, 기본 56px)과 달리 100,000 단위까지도 나와서
+      // 기본 폭으로는 숫자 스피너 화살표에 가려 잘려 보였다 — 이 칸만 폭을 넓힌다(2026-09-15).
+      +'<td><input type="number" class="qi" style="width:92px;" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
       +'<td class="mat-workdays">'+workDays+'</td>'
       +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
       +'<td><input type="number" class="qi" value="'+(r.perDay||0)+'" step="0.01" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
