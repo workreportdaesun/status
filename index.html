@@ -351,7 +351,7 @@ if(isMobileDevice){
     <div class="card">
       <h2>작업분류별 인원집계</h2>
       <div class="tablewrap" style="max-height:320px;"><div id="memCatSummaryWrap">불러오는 중...</div></div>
-      <div class="note">아래 근로자명단을 작업분류(작업일보 "시공" 분류와 동일한 순서) 기준으로 센 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다.</div>
+      <div class="note">아래 근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다.</div>
     </div>
     <div class="card">
       <h2>근로자명단</h2>
@@ -1889,24 +1889,45 @@ function clearMemSearch(){
   if(el) el.value = '';
   renderMembersTab();
 }
-/* 작업분류별 인원집계 — 검색창과 무관하게 항상 membersList(active!==false) 전체를 센다.
-   순서는 물량소화산출·작업일보와 같은 sikongCategories()를 그대로 쓰고, 그 목록에 없는
-   값(예: 옛 기록의 오타·미지정)은 뒤에 가나다순으로 붙인다. */
+/* 작업분류 × 직책 인원집계 — 검색창과 무관하게 항상 membersList(active!==false) 전체를 센다.
+   행(작업분류)은 물량소화산출과 같은 sikongCategories() 순서, 열(직책)은 membersSorted()와
+   같은 MGMT_POSITIONS+FIELD_POSITIONS 순서를 쓴다. 둘 다 실제로 등록된 값만 보여준다 —
+   관리자 분류는 MGMT_POSITIONS(현장소장·공무부장…)만, 나머지 분류는 FIELD_POSITIONS(팀장·
+   계장공·전공…)만 채워지는 구조라 전체 27개 직책을 다 열로 두면 대부분 빈 칸이라 표만
+   불필요하게 넓어진다(2026-09-15). 오른쪽 끝 "합계" 열과 맨 아래 "합계" 행은 각각 행/열 총합,
+   맨 오른쪽 아래 칸은 전체 인원수. */
 function renderMemberCatSummary(){
-  var counts = {};
+  var counts = {}, catTotals = {}, posTotals = {}, grand = 0;
   membersList.forEach(function(m){
-    var cat = m.cat || '(미지정)';
-    counts[cat] = (counts[cat]||0) + 1;
+    var cat = m.cat || '(미지정)', pos = m.position || '(미지정)';
+    counts[cat] = counts[cat] || {};
+    counts[cat][pos] = (counts[cat][pos]||0) + 1;
+    catTotals[cat] = (catTotals[cat]||0) + 1;
+    posTotals[pos] = (posTotals[pos]||0) + 1;
+    grand++;
   });
-  var order = sikongCategories();
-  var extra = Object.keys(counts).filter(function(c){ return order.indexOf(c)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
-  var cats = order.concat(extra);
-  var rows = cats.map(function(cat){
-    return '<tr><td style="text-align:left;">'+esc(cat)+'</td><td>'+(counts[cat]||0)+'명</td></tr>';
+  var catOrderBase = sikongCategories();
+  var catExtra = Object.keys(catTotals).filter(function(c){ return catOrderBase.indexOf(c)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  var cats = catOrderBase.concat(catExtra).filter(function(c){ return catTotals[c]; });
+  var posOrderBase = MGMT_POSITIONS.concat(FIELD_POSITIONS);
+  var posExtra = Object.keys(posTotals).filter(function(p){ return posOrderBase.indexOf(p)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
+  var positions = posOrderBase.concat(posExtra).filter(function(p){ return posTotals[p]; });
+
+  var headHtml = '<th style="text-align:left;">작업분류</th>'
+    + positions.map(function(p){ return '<th>'+esc(p)+'</th>'; }).join('')
+    + '<th>합계</th>';
+  var bodyHtml = cats.map(function(cat){
+    var cells = positions.map(function(p){
+      var n = (counts[cat]||{})[p]||0;
+      return '<td>'+(n||'')+'</td>';
+    }).join('');
+    return '<tr><td style="text-align:left;">'+esc(cat)+'</td>'+cells+'<td class="lbl">'+catTotals[cat]+'</td></tr>';
   }).join('');
-  rows += '<tr class="tot-row"><td class="lbl" style="text-align:left;">합계</td><td>'+membersList.length+'명</td></tr>';
+  if(!bodyHtml) bodyHtml = '<tr><td colspan="'+(positions.length+2)+'" style="text-align:center;color:var(--lbl);padding:18px;">등록된 인원이 없습니다</td></tr>';
+  var totCells = positions.map(function(p){ return '<td>'+(posTotals[p]||'')+'</td>'; }).join('');
+  bodyHtml += '<tr class="tot-row"><td class="lbl" style="text-align:left;">합계</td>'+totCells+'<td class="lbl">'+grand+'</td></tr>';
   document.getElementById('memCatSummaryWrap').innerHTML =
-    '<table class="dt"><thead><tr><th>작업분류</th><th>인원수</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="dt"><thead><tr>'+headHtml+'</tr></thead><tbody>'+bodyHtml+'</tbody></table>';
 }
 function renderMembersTab(){
   renderMemberCatSummary();
