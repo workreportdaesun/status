@@ -171,11 +171,12 @@ table.dt td.cf-warn{background:#FDF3E3;}   /* 주의 — 60~90% */
 table.dt td.cf-err {background:#FDECEA;}   /* 미달 — 60% 미만 */
 table.dt td.cf-out {background:#EEF1F4; color:var(--lbl);}   /* 계획 외 투입 — 계획 0인데 실적 있음 */
 /* 표(왼쪽) + 차트(오른쪽) 배치 — 물량소화산출·인원동원계획 두 탭이 같이 쓴다.
-   2026-08-13엔 반반(1fr 1fr)이었다가, 표가 자주 잘려 보여서 2026-09-15에 2:1(표가 더 넓게)로 조정.
-   ⚠️ 물량소화산출 표는 13열이라 최소 폭이 1066px다 — 1920 화면의 절반(약 920px)에도 안 들어가
-      가로 스크롤이 생겼었다. 창이 좁으면(≤1400px) 차트를 표 아래로 내려 표가 전체 폭을 쓰게 한다.
-      비율을 바꾸려면 grid-template-columns만 조정하면 된다(예: 1.4fr 1fr). */
-.split{display:grid; grid-template-columns:2fr 1fr; gap:14px; align-items:start;}   /* 표:차트 = 2:1(2026-09-15 요청) */
+   2026-08-13엔 반반(1fr 1fr), 2026-09-15 오전엔 2:1(2fr 1fr)로 바꿨는데 — fr 비율은 창 폭에 비례해서
+   줄어들기 때문에, 물량소화산출 표(13열, 최소 폭 1066px)가 화면이 좁아지면 여전히 가로 스크롤이
+   생겼다. 그래서 차트를 고정 폭(360px)으로 박고 표는 minmax(1066px, 1fr)로 "최소 1066px은 보장,
+   남는 공간은 표가 다 먹는다"로 바꿈(2026-09-15 오후) — 이러면 창을 넓혀도 차트만 커지지 않고
+   표가 여유를 가져간다. 차트 폭을 바꾸려면 뒤 360px만 조정하면 된다. */
+.split{display:grid; grid-template-columns:minmax(1066px,1fr) 360px; gap:14px; align-items:start;}
 .chartpane{border:1px solid var(--card-bd); background:var(--card); padding:10px; min-width:0; position:relative;}
 .chartpane canvas{display:block;}
 @media (max-width:1400px){ .split{grid-template-columns:1fr;} .chartpane{height:260px !important;} }
