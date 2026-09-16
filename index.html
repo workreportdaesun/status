@@ -316,7 +316,6 @@ if(isMobileDevice){
   <!-- 출력일지 -->
   <div class="tab-panel active" id="panel-att">
     <div class="card">
-      <h2 id="attTitle">일별출력</h2>
       <div class="toolbar">
         <div class="seg" id="attSeg">
           <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
@@ -340,7 +339,6 @@ if(isMobileDevice){
   <!-- 인원투입계획 -->
   <div class="tab-panel" id="panel-pos">
     <div class="card">
-      <h2 id="posTitle">일별 인원투입계획 및 실투입비교</h2>
       <div class="toolbar">
         <div class="seg" id="posSeg">
           <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
@@ -366,7 +364,6 @@ if(isMobileDevice){
        데이터를 보는 사실상 같은 화면이 됐다). position_plan_qty는 이제 인원동원계획 탭만 쓴다. -->
   <div class="tab-panel" id="panel-cat">
     <div class="card">
-      <h2 id="catTitle">일별 물량소화계획 및 실투입비교</h2>
       <div class="toolbar">
         <div class="seg" id="catSeg">
           <button type="button" class="seg-btn active" data-mode="day" onclick="setViewMode('day')">일별</button>
@@ -394,7 +391,6 @@ if(isMobileDevice){
     </div>
     <div class="mem-sub active" id="memSub-sum">
       <div class="card">
-        <h2>작업분류별 인원집계</h2>
         <div class="toolbar">
           <button class="btn sm ghost" onclick="applyAllCatRowPositions()">일괄적용</button>
           <span style="font-size:12px;color:var(--lbl);">칸의 숫자를 여러 줄 고친 뒤 한 번에 반영합니다 — 줄마다 따로 누를 필요 없습니다.</span>
@@ -422,7 +418,6 @@ if(isMobileDevice){
   <!-- 물량소화산출 -->
   <div class="tab-panel" id="panel-mat">
     <div class="card">
-      <h2>물량 소화 산출</h2>
       <div class="toolbar">
         <!-- "기본목록으로 다시 채우기"는 삭제(2026-08-12 사용자 요청). 누르면 입력값이 전부
              날아가는 버튼이라 실수 여지가 컸다 — 목록이 비어 있으면 화면을 열 때 자동으로
@@ -448,7 +443,6 @@ if(isMobileDevice){
   <!-- 인원동원계획 -->
   <div class="tab-panel" id="panel-mob">
     <div class="card">
-      <h2>인원동원계획</h2>
       <div class="toolbar">
         <!-- 상단 안내 문구는 삭제(2026-08-12 사용자 요청) — 같은 내용이 표 아래 .note에 이미 있다. -->
         <button class="btn sm ghost" onclick="loadPeriodData()">새로고침</button>
@@ -900,14 +894,6 @@ function buildColumnsUncached(range){
     return {days:[d], label:label, cls:dowClass(d)+(hn?' hol':''), title:hn||''};
   });
 }
-var ATT_TITLE_BY_MODE={day:'일별출력', week:'주간출력', month:'월간출력'};
-var POS_TITLE_BY_MODE={day:'일별 인원투입계획 및 실투입비교', week:'주간 인원투입계획 및 실투입비교', month:'월간 인원투입계획 및 실투입비교'};
-var CAT_TITLE_BY_MODE={day:'일별 물량소화계획 및 실투입비교', week:'주간 물량소화계획 및 실투입비교', month:'월간 물량소화계획 및 실투입비교'};
-function updateSectionTitles(){
-  document.getElementById('attTitle').textContent = ATT_TITLE_BY_MODE[viewMode];
-  document.getElementById('posTitle').textContent = POS_TITLE_BY_MODE[viewMode];
-  document.getElementById('catTitle').textContent = CAT_TITLE_BY_MODE[viewMode];
-}
 /* 월 선택기 — 일별 모드에서만 보인다. 출력일지·인원투입계획 두 탭이 같은 달을 공유한다
    (지금도 일별/주간/월간 모드를 공유하는 것과 같은 방식). */
 function renderMonthNav(){
@@ -955,7 +941,6 @@ function setViewMode(mode){
   ['att','pos'].forEach(function(p){
     document.querySelectorAll('#'+p+'Seg .seg-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode===mode); });
   });
-  updateSectionTitles();
   renderMonthNav();
   // 일별/주간/월간은 같은 예상 시작일~완료일 데이터를 다르게 묶어 보여주는 것뿐이라, 그 기간이 안 바뀌었으면
   // (=이미 서버에서 받아온 데이터가 있으면) 재조회 없이 다시 그리기만 함 — 모드를 누를 때마다 매번 Supabase를
@@ -1000,7 +985,6 @@ function isNonWorkDay(dateStr){ return isWeekend(dateStr) || !!holidayNameForDat
 // ---------- init ----------
 async function init(){
   document.getElementById('hdrToday').textContent = todayStr();
-  updateSectionTitles();
   await loadAppSettings();
   applyReportRangeToInputs();
   await loadMembers();
