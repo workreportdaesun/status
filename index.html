@@ -209,10 +209,18 @@ table.dt td.flag{cursor:pointer; user-select:none; color:var(--brand-2); font-we
 table.dt td.flag.on{background:var(--ok-solid); color:#fff;}
 /* 칸 안의 입력칸은 높이를 21px로 고정한다 — 25px 행 안에 여백까지 들어가는 크기라,
    입력칸이 있는 표(물량소화산출·인원동원계획)도 출력일지와 행 높이가 같아진다. */
+/* 칸 안 입력창이 옅은 하늘색 테두리(--field-bd)를 따로 갖고 있어서 표 칸 안에 작은 사각박스가
+   하나 더 있는 것처럼 보인다는 지적(2026-09-16) — 엑셀처럼 칸 테두리 안에서 그냥 고치는 느낌이
+   나도록 평소엔 테두리·배경을 없애고(칸 자체 테두리만 보임), 실제로 클릭해 고치는 중일 때만
+   포커스 테두리로 알려준다. border는 폭을 유지하려고 지우지 않고 투명하게만 바꿨다(칸 높이가
+   흔들리지 않게 box-sizing:border-box와 맞춤). */
 table.dt td input.qi, table.dt td input.dtx, table.dt td input.txi{
-  height:21px; padding:0 4px; box-sizing:border-box; border:1px solid var(--field-bd); border-radius:0; font-size:12px;}
-/* 근로자명단(명단) 편집용 — 위 input.txi와 높이·테두리는 맞추되 select는 폭을 셀에 꽉 채운다(2026-09-16). */
-table.dt td select.msel{width:100%; height:21px; padding:0 2px; box-sizing:border-box; border:1px solid var(--field-bd); border-radius:0; font-size:12px; font-family:var(--font-body);}
+  height:21px; padding:0 4px; box-sizing:border-box; border:1px solid transparent; background:transparent; border-radius:0; font-size:12px;}
+table.dt td input.qi:focus, table.dt td input.dtx:focus, table.dt td input.txi:focus{
+  border-color:var(--brand-2); outline:none; background:#fff;}
+/* 근로자명단(명단) 편집용 — 위 input.txi와 높이는 맞추되 select는 폭을 셀에 꽉 채운다(2026-09-16). */
+table.dt td select.msel{width:100%; height:21px; padding:0 2px; box-sizing:border-box; border:1px solid transparent; background:transparent; border-radius:0; font-size:12px; font-family:var(--font-body);}
+table.dt td select.msel:focus{border-color:var(--brand-2); outline:none; background:#fff;}
 /* ── 첫번째 열 기준(2026-08-13) ────────────────────────────────────────────
    근로자명단·물량소화산출의 1열이 정렬·폭·굵기가 제각각이라 탭을 옮길 때마다 들쭉날쭉했다.
    1열 내용이 두 종류라 폭만 따로 간다.
@@ -2004,13 +2012,17 @@ function clearMemSearch(){
 function renderMemberCatSummary(){
   var counts = {}, catTotals = {}, posTotals = {}, grand = 0;
   membersList.forEach(function(m){
-    var cat = m.cat || '(미지정)', pos = m.position || '(미지정)';
+    // ⚠️ pos는 직책이 없을 때 빈 문자열('') 그대로 둔다 — "(미지정)" 같은 표시용 문자열로 바꿔 버리면
+    // 그 문자열이 실제 열(칸)로 만들어져서, [일괄적용]이 그걸 "(미지정)"이라는 진짜 직책인 것처럼
+    // members.position에 그대로 저장해버리는 사고가 났었다(2026-09-16 실제 발생·복구함). 직책 없는
+    // 인원은 합계(catTotals)에는 잡히되 어느 칸에도 안 잡혀서, 합계보다 칸 합이 모자라면 [일괄적용]이
+    // 막힌다 — 실제 직책을 채워 넣어야만 반영되게 하는 게 안전하다.
+    var cat = m.cat || '(미지정)', pos = m.position || '';
     counts[cat] = counts[cat] || {};
     counts[cat][pos] = (counts[cat][pos]||0) + 1;
     catTotals[cat] = (catTotals[cat]||0) + 1;
-    // 관리자(MGMT_POSITIONS) 직책은 열로 안 쪼개므로 열 합계(posTotals)에도 넣지 않는다 —
-    // 안 그러면 "합계" 행에 관리자 직책들이 따로 열을 만들며 다시 나타난다.
-    if(MGMT_POSITIONS.indexOf(pos)===-1) posTotals[pos] = (posTotals[pos]||0) + 1;
+    // 관리자(MGMT_POSITIONS) 직책과 직책 없음(빈 문자열)은 열로 안 쪼개므로 열 합계(posTotals)에도 넣지 않는다.
+    if(pos && MGMT_POSITIONS.indexOf(pos)===-1) posTotals[pos] = (posTotals[pos]||0) + 1;
     grand++;
   });
   var catOrderBase = sikongCategories();
@@ -2136,7 +2148,12 @@ async function applyAllCatRowPositions(){
     var cat = st.cats[ci];
     if(cat==null) return;
     var counts = {};
-    wrap.querySelectorAll('input.csi[data-ci="'+ci+'"]').forEach(function(el){ counts[el.dataset.pos] = Math.max(0, Math.round(+el.value||0)); });
+    // 안전장치: 실제 직책 목록(MGMT_POSITIONS+FIELD_POSITIONS)에 없는 data-pos는 절대 안 받는다 —
+    // "(미지정)" 같은 표시용 문자열이 실제 직책값으로 저장되는 사고가 있었다(2026-09-16).
+    wrap.querySelectorAll('input.csi[data-ci="'+ci+'"]').forEach(function(el){
+      if(MGMT_POSITIONS.concat(FIELD_POSITIONS).indexOf(el.dataset.pos)===-1) return;
+      counts[el.dataset.pos] = Math.max(0, Math.round(+el.value||0));
+    });
     var catMembers = membersList.filter(function(m){ return (m.cat||'(미지정)')===cat; });
     var plan = computeCatRowPlan(cat, counts, catMembers);
     if(plan.blocked){ blocked.push({cat:cat, totalReq:plan.totalReq, actual:plan.actual}); return; }
