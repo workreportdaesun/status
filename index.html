@@ -143,7 +143,7 @@ table.dt thead tr.period-cap th{text-align:left;}
 table.dt thead tr.period-cap th span.stick{position:sticky; left:8px; display:inline-block;}
 table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
 table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
-table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:72px; background:var(--field-bg); z-index:3; text-align:left;}
+table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(--field-bg); z-index:3; text-align:left;}
 /* 이름/직책 라벨 칸을 이제 캡션 행(1행)에 rowspan으로 병합해 넣는데, 그 행의 일반 규칙(위 68번째 줄)이
    특이도가 더 높아서 배경/고정(sticky)을 덮어써버리므로, 라벨 칸만 다시 되돌림. */
 table.dt thead tr.period-cap th.lbl, table.dt thead tr.period-cap th.lbl2{position:sticky; background:var(--field-bg); color:var(--ink); font-size:12px; z-index:7;}
@@ -1217,7 +1217,9 @@ function colHeadHtml(cols){
   }).join('');
 }
 // 열마다 고정폭을 주는 colgroup — 같은 표 안에서는 데이터 열 폭이 항상 같도록(라벨2칸+데이터n칸+꼬리n칸)
-var GRID_LBL1_W=72, GRID_LBL2_W=64, GRID_TAIL_W=60, GRID_DATA_MIN=32, GRID_DATA_MAX=140;
+// GRID_LBL1_W(작업분류·직책 라벨 칸 폭)는 72였는데 "CABLE PULLING"·"STEAM TRACING"·"화기감시자"
+// 같은 긴 이름이 말줄임표(…)로 잘려서 130으로 넓혔다(2026-09-16 사용자 요청).
+var GRID_LBL1_W=130, GRID_LBL2_W=64, GRID_TAIL_W=60, GRID_DATA_MIN=32, GRID_DATA_MAX=140;
 function colGroupHtml(dataColCount, trailingCount, dataW){
   var html = '<colgroup><col style="width:'+GRID_LBL1_W+'px"><col style="width:'+GRID_LBL2_W+'px">';
   for(var i=0;i<dataColCount;i++){ html += '<col style="width:'+dataW+'px">'; }
