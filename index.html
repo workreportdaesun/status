@@ -340,9 +340,10 @@ if(isMobileDevice){
     </div>
   </div>
 
-  <!-- 물량소화계획(2026-08-13 신규, 옛 이름 "작업별투입계획") — 위 인원투입계획(panel-pos)과 서식·조작이 완전히 같다.
-       다른 점은 행 기준뿐: 직책(position) -> 작업분류(cat). 계획값은 app_settings.cat_plan_qty에
-       저장하며, 직책 쪽(position_plan_qty)과는 완전히 별개다. -->
+  <!-- 물량소화계획(2026-08-13 신규, 옛 이름 "작업별투입계획") — 위 인원투입계획(panel-pos)과 서식·조작이 완전히 같고
+       계획값(app_settings.cat_plan_qty)도 같이 쓴다(2026-09-16부터 — 그전엔 인원투입계획이 직책(position_plan_qty)
+       기준이라 완전히 별개였는데, 사용자 요청으로 인원투입계획도 작업분류 기준으로 바뀌면서 두 화면이 같은
+       데이터를 보는 사실상 같은 화면이 됐다). position_plan_qty는 이제 인원동원계획 탭만 쓴다. -->
   <div class="tab-panel" id="panel-cat">
     <div class="card">
       <h2 id="catTitle">일별 물량소화계획 및 실투입비교</h2>
@@ -435,7 +436,7 @@ if(isMobileDevice){
         </div>
         <div class="chartpane"><canvas id="mobChart"></canvas></div>
       </div>
-      <div class="note">인원투입계획 탭과 같은 계획인원(position_plan_qty) 데이터를 월 단위로만 보여주는 화면입니다 — 여기서 셀을 수정하면 인원투입계획 탭에도 그대로 반영됩니다. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 입력값을 그대로 더한 값).</div>
+      <div class="note">직책별 계획인원(position_plan_qty)을 월 단위로만 보여주는 화면입니다. 인원투입계획 탭은 2026-09-16부터 작업분류 기준(cat_plan_qty)으로 바뀌어 더 이상 이 데이터를 같이 안 보므로, 여기서 셀을 수정해도 인원투입계획 탭에는 반영되지 않습니다. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 입력값을 그대로 더한 값).</div>
     </div>
   </div>
 
@@ -1861,8 +1862,9 @@ async function saveCatPlanQty(idx, val, monthStr){
 }
 
 // ---------- 인원동원계획(월별, 계획인원만) ----------
-// 인원투입계획과 같은 position_plan_qty를 직책×월로만 펼쳐 보여주는 전용 화면 — 실적(A/F) 비교 없이
+// position_plan_qty를 직책×월로만 펼쳐 보여주는 전용 화면 — 실적(A/F) 비교 없이
 // "이 달에 이 직책을 몇 명 동원할 계획인지"만 한눈에 보고 바로 수정할 수 있게 함(2026-08-07).
+// 인원투입계획은 2026-09-16부터 작업분류 기준(cat_plan_qty)으로 바뀌어 이 데이터와 더 이상 안 겹친다.
 function mobColGroupHtml(n, dataW){
   var h = '<colgroup><col style="width:'+GRID_LBL1_W+'px">';
   for(var i=0;i<n;i++) h += '<col style="width:'+dataW+'px">';
