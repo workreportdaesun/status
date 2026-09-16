@@ -474,6 +474,28 @@ if(!isMobileDevice && !localStorage.getItem('member_id')){ location.replace('log
 
 var MGMT_POSITIONS=['운영관리자','현장소장','공무부장','공무과장','공사부장','공사차장','품질차장','품질과장','자재과장','안전차장','안관관리','공구장','대리','기사'];
 var FIELD_POSITIONS=['팀장','계장공','전공','조공','결선공','케이블공','LOOP','비계공','화기감시자','유도원','신호수','계기교정','기타'];
+// 작업분류(물량소화산출 DESCRIPTION) → 직책 기본 매핑 — [근로자명단 자동생성]이 전부 "기타"로
+// 채우는 대신 실제 직책으로 채워 넣도록 쓴다(2026-09-16 사용자 요청). 직책이 여러 개인 분류
+// (SCAFFOLDING 등)는 돌려가며(round-robin) 배정해 인원을 고르게 나눈다. 목록에 없는 분류는
+// 그대로 "기타"(positionForCat 참고).
+var CAT_POSITION_MAP={
+  'CALIBRATION':['계기교정'],
+  'LOOP TEST':['LOOP'],
+  'CONNECTION':['결선공'],
+  'SCAFFOLDING':['비계공','유도원'],
+  'JUNCTION BOX':['화기감시자'],
+  'CABLE DUCT':['화기감시자'],
+  'CABLE TRAY':['화기감시자'],
+  'CONDUIT PIPE':['화기감시자'],
+  'AIR PIPE':['화기감시자'],
+  'HOOK UP':['화기감시자'],
+  'SUPPORT':['화기감시자'],
+  'STEAM TRACING':['화기감시자']
+};
+function positionForCat(cat, idx){
+  var list = CAT_POSITION_MAP[cat];
+  return list ? list[idx % list.length] : '기타';
+}
 
 var FIXED_HOLIDAYS_MMDD=[
   {md:'01-01',name:'신정'},{md:'03-01',name:'3\u00b71\uc808'},
@@ -2336,7 +2358,8 @@ async function saveMaterialPlan(){
    (2026-09-16 사용자 요청). 실제 이름/전화번호를 아직 모르는 계획 단계 인원이라 이름은
    "작업분류+번호"(예: DCS PANEL1, DCS PANEL2)로 채우고 전화번호는 비워 두되, 직책·소속은
    빈칸이면 인원집계표(작업분류×직책)에서 "(미지정)"으로 흩어져 집계가 지저분해지므로
-   직책="기타"(FIELD_POSITIONS 안의 값), 소속="미정"으로 채운다(2026-09-16 사용자 요청) —
+   직책은 CAT_POSITION_MAP(작업분류→직책 매핑, 2026-09-16 사용자 요청)에 있으면 그 직책을,
+   없으면 "기타"를 쓰고, 소속은 "미정"으로 채운다 —
    나중에 실제 인원이 정해지면 이 이름들만 골라 실명/전화번호/직책/소속을 고쳐 쓰면 된다.
    근로자명단은 이 앱만 쓰는 게 아니라 출퇴근체크·작업일보 등 생태계 전체가 공유하는 실제
    Supabase members 테이블이므로(2026-09-16 사용자 확인), 실행 전 몇 명이 어느 작업분류에
@@ -2350,7 +2373,7 @@ async function generateWorkersFromManpower(){
     var need = matDerived(r).manpower;
     if(need<=0) return;
     var have = haveByCat[r.name] || 0;
-    for(var n=have+1; n<=need; n++) toCreate.push({name:r.name+n, cat:r.name, menu:'시공', position:'기타', team:'미정', active:true});
+    for(var n=have+1; n<=need; n++) toCreate.push({name:r.name+n, cat:r.name, menu:'시공', position:positionForCat(r.name, n-1), team:'미정', active:true});
   });
   if(!toCreate.length){ showToast('이미 모든 작업분류가 투입인력만큼 등록되어 있습니다','var(--brand-2)'); return; }
   var byCat = {};
