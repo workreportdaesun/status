@@ -332,7 +332,7 @@ if(isMobileDevice){
         <div class="tw-head-clip"><div id="posTableHead"></div></div>
         <div class="tw-body-scroll"><div id="posTableWrap">불러오는 중...</div></div>
       </div>
-      <div class="note">P(계획)=직책별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출력일지 합계(기본+연장+추가+주월차)를 <b>그날 작업일보에 기록된 직책</b> 기준으로 집계 (작업일보에 직책이 없는 옛 기록은 명단의 현재 직책을 씁니다. 퇴사자가 남긴 과거 실적도 포함됩니다) · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 일별은 월 선택기로 고른 한 달만, 주간/월간은 예상 시작일~완료일 전체를 합산해 보여주는 조회 전용 화면입니다 · <b>A/F 칸 색</b>은 그 칸의 계획 대비 달성도입니다 — <span style="background:#E8F6EE;padding:0 5px;">90% 이상</span> <span style="background:#FDF3E3;padding:0 5px;">60~90%</span> <span style="background:#FDECEA;padding:0 5px;">60% 미만</span> <span style="background:#EEF1F4;padding:0 5px;">계획 외 투입</span> (오른쪽 달성률 배지와 같은 기준)</div>
+      <div class="note">행 기준이 작업분류로 바뀌어(2026-09-16) 물량소화계획 탭과 같은 계획인원(cat_plan_qty)을 보여주는 화면입니다 — 어느 탭에서 고치든 서로 그대로 반영됩니다. P(계획)=작업분류별 계획인원(M/D) 입력값을 해당 월의 근무일(공휴일 제외)에 적용 · A/F(실적)=출력일지 합계(기본+연장+추가+주월차)를 <b>그날 작업일보에 기록된 작업분류</b> 기준으로 집계 (작업일보에 분류가 없는 옛 기록은 명단의 현재 분류를 씁니다. 퇴사자가 남긴 과거 실적도 포함됩니다) · 계획인원 수정은 일별 모드에서만 가능하며 <b>지금 보고 있는 달</b>에 저장됩니다 · 일별은 월 선택기로 고른 한 달만, 주간/월간은 예상 시작일~완료일 전체를 합산해 보여주는 조회 전용 화면입니다 · <b>A/F 칸 색</b>은 그 칸의 계획 대비 달성도입니다 — <span style="background:#E8F6EE;padding:0 5px;">90% 이상</span> <span style="background:#FDF3E3;padding:0 5px;">60~90%</span> <span style="background:#FDECEA;padding:0 5px;">60% 미만</span> <span style="background:#EEF1F4;padding:0 5px;">계획 외 투입</span> (오른쪽 달성률 배지와 같은 기준)</div>
     </div>
   </div>
 
@@ -1634,15 +1634,17 @@ function buildDayCounts(keyOf){
   });
   return m;
 }
-function buildPositionDayCounts(){
-  return buildDayCounts(function(snap, mem){ return snap.position || mem.position; });
-}
+/* 인원투입계획 — 옛날엔 행 기준이 직책이었는데, 물량소화계획과 완전히 같은 화면이 되더라도
+   작업분류 기준으로 통일해달라는 사용자 요청(2026-09-16)으로 행 기준을 작업분류로 바꿨다.
+   그래서 아래는 renderCatTable과 데이터 출처(catPlanQty·buildCatDayCounts·catRowList)가 같고
+   다른 점은 이 화면 전용 DOM(posTableHead/posTableWrap)과 가상 스크롤 상태(posRenderCount)뿐 —
+   물량소화계획 탭에서 계획인원을 고치면 이 화면에도 그대로 반영된다(같은 저장소를 보므로). */
 function renderPositionTable(cols, renderCount){
   /* 계획인원 수정은 일별 모드에서만 — 지금 보고 있는 달에 저장한다(2026-08-11 수정).
      예전엔 항상 예상 시작일이 속한 달로 저장해서, 일별 화면에 여러 달이 한꺼번에 나오던 시절
      8월 칸에 넣은 숫자가 3월 계획으로 저장되는 문제가 있었다. 월 선택이 생기며 바로잡음. */
   var editMonthStr = (viewMode==='day' && dayMonth) ? dayMonth : (appSettings.report_start_date||'').slice(0,7);
-  var editMonthPlan = positionPlanQty[editMonthStr] || {};
+  var editMonthPlan = catPlanQty[editMonthStr] || {};
   var dataW = dataColWidthForMode('posTableWrap', cols, 2);
   var groupRow = groupRowFor(cols, 2);
   var rowspan = groupRow ? 3 : 2;
@@ -1657,55 +1659,63 @@ function renderPositionTable(cols, renderCount){
   var hiddenCount = hiddenCols.length;
   var hiddenHead = hiddenCount ? '<th colspan="'+hiddenCount+'" class="vlazy">가로로 스크롤하면 표시됩니다 →</th>' : '';
   var hiddenBody = hiddenCount ? '<td colspan="'+hiddenCount+'" class="vlazy"></td>' : '';
-  var posDayCounts = buildPositionDayCounts();
+  var catDayCounts = buildCatDayCounts();
   var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
-    +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">직책</th><th class="lbl2" rowspan="'+rowspan+'">구분</th><th colspan="'+(cols.length+2)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
+    +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">작업분류</th><th class="lbl2" rowspan="'+rowspan+'">구분</th><th colspan="'+(cols.length+2)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
     +groupRow
     +'<tr>'+colHeadHtml(visCols)+hiddenHead+'<th>합계</th><th>달성률</th></tr></thead></table>';
   var html = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg+'<tbody>';
-  function dayPlanSumFor(pos, c){
+  function dayPlanSumFor(key, c){
     return c.days.reduce(function(s,d){
       if(isNonWorkDay(d)) return s;
-      return s + (+((positionPlanQty[d.slice(0,7)]||{})[pos]||0));   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
+      return s + (+((catPlanQty[d.slice(0,7)]||{})[key]||0));   // 각 날짜는 그 날짜가 속한 달의 계획값을 사용
     },0);
   }
-  function actCountFor(pos, c){
-    return c.days.reduce(function(s,d){ return s + ((posDayCounts[d]||{})[pos]||0); },0);
+  function actCountFor(key, c){
+    return c.days.reduce(function(s,d){ return s + ((catDayCounts[d]||{})[key]||0); },0);
   }
-  function posRowHtml(pos){
-    var editVal = +(editMonthPlan[pos]||0);
+  function catRowHtml(row, idx){
+    var key = row.key;
+    var editVal = +(editMonthPlan[key]||0);
     var planTotal=0, actTotal=0;
     var planRow='', actRow='';
     visCols.forEach(function(c){
-      var dayPlanSum = dayPlanSumFor(pos, c);
+      var dayPlanSum = dayPlanSumFor(key, c);
       planTotal += dayPlanSum;
       planRow += '<td class="'+(c.cls||'')+'">'+(dayPlanSum||'')+'</td>';
-      var actCount = actCountFor(pos, c);
+      var actCount = actCountFor(key, c);
       actTotal += actCount;
       // 계획(P) 행은 입력값이라 색을 넣지 않는다 — 실적 행에만 조건부서식을 건다.
       actRow += '<td class="'+((c.cls||'')+' '+cfClass(dayPlanSum, actCount)).trim()+'">'+(actCount||'')+'</td>';
     });
     // 합계/달성률은 화면에 아직 안 그려진 열도 포함해서(cols 전체 기준) 항상 정확하게 계산함.
     hiddenCols.forEach(function(c){
-      planTotal += dayPlanSumFor(pos, c);
-      actTotal += actCountFor(pos, c);
+      planTotal += dayPlanSumFor(key, c);
+      actTotal += actCountFor(key, c);
     });
     var rate = planTotal>0 ? Math.round(actTotal/planTotal*100) : (actTotal>0?100:0);
     var badgeCls = badgeClsFor(rate);
     var totalCf = cfClass(planTotal, actTotal);
     // autocomplete="off": 계획인원 입력칸에 이전에 쳤던 숫자들이 브라우저 자동완성 드롭다운으로 뜨는데, 좁은
     // 표 칸(overflow:hidden) 안에 있다 보니 그 목록이 테두리선에 가려 다 안 보이던 문제 — 아예 꺼서 없앰(2026-08-07).
-    var editCell = viewMode==='day' ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="savePositionPlanQty(\''+pos+'\',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' 직책별 1일 계획인원(M/D)">') : '';
-    return '<tr><td class="lbl" rowspan="2">'+esc(pos)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+    var editCell = viewMode==='day'
+      ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="saveCatPlanQty('+idx+',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' '+esc(row.cat)+' 1일 계획인원(M/D)">')
+      : '';
+    return '<tr><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
       + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
   }
-  if(!cols.length){
+  var rows = catRowList();
+  if(!cols.length || !rows.length){
     html += '<tr><td colspan="4" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';   // 이 표는 라벨2+합계+달성률 = 4칸
   } else {
-    html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">간접인원</span></td></tr>';
-    MGMT_POSITIONS.forEach(function(pos){ html += posRowHtml(pos); });
-    html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">직접인원</span></td></tr>';
-    FIELD_POSITIONS.forEach(function(pos){ html += posRowHtml(pos); });
+    // 물량소화계획과 같은 원칙 — 메뉴가 하나뿐이면(지금은 시공만) 구분행을 넣지 않는다.
+    var byMenu = {};
+    rows.forEach(function(r,i){ r._i = i; (byMenu[r.menu] = byMenu[r.menu] || []).push(r); });
+    var menus = Object.keys(byMenu);
+    menus.forEach(function(menu){
+      if(menus.length > 1) html += '<tr class="sec-row"><td colspan="'+(cols.length+4)+'"><span class="stick">'+esc(menu)+'</span></td></tr>';
+      byMenu[menu].forEach(function(r){ html += catRowHtml(r, r._i); });
+    });
   }
   html += '</tbody></table>';
   document.getElementById('posTableHead').innerHTML = headHtml;
@@ -1719,8 +1729,9 @@ async function savePositionPlanQty(pos, val, monthStr){
   var res = await sb.from('app_settings').update({position_plan_qty:positionPlanQty}).eq('id','global');
   if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); return; }
   showToast('✅ 저장됨','var(--ok)');
-  renderPositionTable(buildColumns(), posRenderCount);   // 지금까지 스크롤로 펼쳐둔 열 개수를 유지한 채 다시 그림
-  renderMobilizationTable();   // 같은 계획인원(position_plan_qty) 데이터를 공유하는 화면이라 같이 갱신
+  // 인원투입계획은 2026-09-16부터 작업분류(catPlanQty) 기준으로 바뀌어 더 이상 position_plan_qty를
+  // 안 쓰므로, 여기서 갱신할 화면은 인원동원계획뿐이다.
+  renderMobilizationTable();
 }
 
 // ---------- 물량소화계획 및 실투입 비교 (2026-08-13 신규, 탭 키는 cat) ----------
@@ -1744,7 +1755,7 @@ function catRowList(){
   catRowsCache = out;
   return out;
 }
-/* buildPositionDayCounts의 작업분류판. 메뉴와 분류를 따로 되짚는 이유는, 옛 기록이 둘 중
+/* buildDayCounts를 작업분류 기준으로 되짚는다. 메뉴와 분류를 따로 되짚는 이유는, 옛 기록이 둘 중
    하나만 갖고 있는 경우가 실제로 있기 때문이다(전체 crew 중 일부만 cat이 채워져 있음). */
 function buildCatDayCounts(){
   return buildDayCounts(function(snap, mem){
@@ -1840,6 +1851,7 @@ async function saveCatPlanQty(idx, val, monthStr){
   }
   showToast('✅ 저장됨','var(--ok)');
   renderCatTable(buildColumns(), catRenderCount);
+  renderPositionTable(buildColumns(), posRenderCount);   // 인원투입계획도 같은 catPlanQty를 보므로 같이 갱신(2026-09-16)
 }
 
 // ---------- 인원동원계획(월별, 계획인원만) ----------
