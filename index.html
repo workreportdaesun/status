@@ -2168,7 +2168,7 @@ function renderMaterialTable(){
       +'<td><input type="number" class="qi" style="width:92px;" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
       +'<td><input type="number" class="qi mat-workdays-input" style="width:56px;" min="0" step="1" value="'+workDays+'" onchange="updMat('+i+',\'workDays\',this.value)"></td>'
       +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
-      +'<td><input type="number" class="qi" value="'+(r.perDay||0)+'" step="0.01" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
+      +'<td><input type="number" class="qi mat-perday-input" value="'+(r.perDay||0)+'" step="0.1" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
       +'<td class="mat-manpower">'+manpower+'</td>'
       +'<td class="mat-total">'+totalManpower+'</td>'
       +'<td><input class="txi" value="'+esc(r.note||'')+'" onchange="updMat('+i+',\'note\',this.value)"></td>'
@@ -2236,6 +2236,8 @@ function matDerived(r){
 function updMat(i, field, val){
   var r = materialPlan[i];
   if(field==='qty' || field==='perDay' || field==='workDays') val = +val || 0;
+  // 1인시공물량은 소숫점 한 자리까지만 받는다(2026-09-16 사용자 요청).
+  if(field==='perDay') val = Math.round(val*10)/10;
   if(field==='workDays'){
     r.workDays = Math.max(0, Math.round(val));
     if(!r.start) r.start = todayStr();
@@ -2256,6 +2258,7 @@ function updMat(i, field, val){
   // 방금 입력한 칸이 아닌 쪽만 화면 값을 갈아끼운다(입력 중인 칸의 포커스/커서를 건드리지 않기 위해).
   if(field!=='finish'){ var fEl=row.querySelector('.mat-finish'); if(fEl) fEl.value=r.finish||''; }
   if(field!=='workDays'){ var wEl=row.querySelector('.mat-workdays-input'); if(wEl) wEl.value=d.workDays; }
+  if(field==='perDay'){ var pEl=row.querySelector('.mat-perday-input'); if(pEl) pEl.value=r.perDay; }
   var set = function(sel, text){ var c=row.querySelector(sel); if(c) c.textContent=text; };
   set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(2):'0');
   set('.mat-manpower', d.manpower);
