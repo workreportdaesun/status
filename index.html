@@ -404,7 +404,7 @@ if(isMobileDevice){
       </table></div>
       <div class="chartpane"><canvas id="matChart"></canvas></div>
       </div>
-      <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 토/일/공휴일을 제외한 실제 근무일수 기준이며(원본 서식 수식과 동일) Start·Finish·작업일수 세 칸은 서로 맞물려 있습니다 — 작업일수를 직접 입력하면 Start는 그대로 두고 Finish가 자동 계산되고, Start를 고치면 작업일수는 그대로 두고 Finish가 다시 계산되며, Finish를 직접 고치면 작업일수가 다시 계산됩니다(2026-09-16). 시공물량=ROUND(계약물량/작업일수, 2), 투입인력=ROUNDUP(시공물량/1인시공물량, 0), 예상총투입인원=작업일수×투입인력 — 실행예산품의서(엑셀) "물량소화계획" 시트 수식과 동일합니다(2026-09-15). "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
+      <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 토/일/공휴일을 제외한 실제 근무일수 기준이며(원본 서식 수식과 동일) Start·Finish·작업일수 세 칸은 서로 맞물려 있습니다 — 작업일수를 직접 입력하면 Start는 그대로 두고 Finish가 자동 계산되고, Start를 고치면 작업일수는 그대로 두고 Finish가 다시 계산되며, Finish를 직접 고치면 작업일수가 다시 계산됩니다(2026-09-16). 시공물량=ROUND(계약물량/작업일수, 1), 투입인력=ROUNDUP(시공물량/1인시공물량, 0), 예상총투입인원=작업일수×투입인력 — 실행예산품의서(엑셀) "물량소화계획" 시트 수식과 동일합니다(2026-09-15). "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
     </div>
   </div>
 
@@ -2167,7 +2167,7 @@ function renderMaterialTable(){
       // 기본 폭으로는 숫자 스피너 화살표에 가려 잘려 보였다 — 이 칸만 폭을 넓힌다(2026-09-15).
       +'<td><input type="number" class="qi" style="width:92px;" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
       +'<td><input type="number" class="qi mat-workdays-input" style="width:56px;" min="0" step="1" value="'+workDays+'" onchange="updMat('+i+',\'workDays\',this.value)"></td>'
-      +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
+      +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(1):'0')+'</td>'
       +'<td><input type="number" class="qi mat-perday-input" value="'+(r.perDay||0)+'" step="0.1" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
       +'<td class="mat-manpower">'+manpower+'</td>'
       +'<td class="mat-total">'+totalManpower+'</td>'
@@ -2213,16 +2213,17 @@ document.getElementById('matBody').addEventListener('click', function(e){
 /* 한 행에서 파생되는 계산값(작업일수·시공물량·투입인력·예상 총투입인원)을 한 군데서 구한다 —
    렌더링과 부분 갱신이 같은 식을 쓰게 하려는 것. */
 /* 실행예산품의서(품의서 엑셀 "물량소화계획" 시트) 원본 수식 그대로:
-     G(일일시공물량) = ROUND(E/F, 2)          — E=계약물량(qty), F=작업일수(workDays)
+     G(일일시공물량) = ROUND(E/F, 1)          — E=계약물량(qty), F=작업일수(workDays)
      I(일일투입인력) = ROUNDUP(G/H, 0)        — H=1인시공물량(perDay), 올림(내림 아님!)
      J(예상총투입인원) = F*I
    전에는 G를 반올림 없이 그대로 쓰고 I도 Math.floor(내림)로 잘못 구했다(2026-09-15 수정) —
-   G를 먼저 반올림해야 그 값을 기준으로 I가 정확히 올림되고, 화면 표시(toFixed(2))와도
-   실제 계산에 쓰는 값이 같아진다. */
+   G를 먼저 반올림해야 그 값을 기준으로 I가 정확히 올림되고, 화면 표시(toFixed(1))와도
+   실제 계산에 쓰는 값이 같아진다. 1인시공물량 입력단위(소숫점 한 자리, 2026-09-16)에 맞춰
+   G의 반올림 자리수도 2자리에서 1자리로 맞춤. */
 function matDerived(r){
   // 예전 데이터(workDays 필드가 없던 저장분)는 시작~종료일로부터 계산해 채운다.
   var workDays = (r.workDays!=null && r.workDays!=='') ? (+r.workDays||0) : networkDaysExclHolidays(r.start, r.finish);
-  var perDayQty = workDays>0 ? Math.round((r.qty/workDays)*100)/100 : 0;
+  var perDayQty = workDays>0 ? Math.round((r.qty/workDays)*10)/10 : 0;
   var manpower = r.perDay>0 ? Math.ceil(perDayQty/r.perDay) : 0;
   return {workDays:workDays, perDayQty:perDayQty, manpower:manpower, totalManpower:Math.round(workDays*manpower)};
 }
@@ -2260,7 +2261,7 @@ function updMat(i, field, val){
   if(field!=='workDays'){ var wEl=row.querySelector('.mat-workdays-input'); if(wEl) wEl.value=d.workDays; }
   if(field==='perDay'){ var pEl=row.querySelector('.mat-perday-input'); if(pEl) pEl.value=r.perDay; }
   var set = function(sel, text){ var c=row.querySelector(sel); if(c) c.textContent=text; };
-  set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(2):'0');
+  set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(1):'0');
   set('.mat-manpower', d.manpower);
   set('.mat-total', d.totalManpower);
 }
