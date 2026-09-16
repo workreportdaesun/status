@@ -404,7 +404,7 @@ if(isMobileDevice){
       </table></div>
       <div class="chartpane"><canvas id="matChart"></canvas></div>
       </div>
-      <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 시작~종료일 사이 토/일/공휴일을 제외한 실제 근무일수에서 1일을 뺀 값이며(원본 서식 수식과 동일), 자동 계산됩니다. 시공물량=ROUND(계약물량/작업일수, 2), 투입인력=ROUNDUP(시공물량/1인시공물량, 0), 예상총투입인원=작업일수×투입인력 — 실행예산품의서(엑셀) "물량소화계획" 시트 수식과 동일합니다(2026-09-15). "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
+      <div class="note">DESCRIPTION 목록은 작업일보 앱의 "시공" 작업분류(⚙️작업분류 설정)와 동일하게 연동됩니다 — 작업일보에서 분류를 새로 추가하면 이 화면을 열 때 자동으로 뒤에 이어붙습니다(이미 입력한 Start/Finish/계약물량 등 기존 행은 그대로 유지). 계약물량 기본값은 작업일보의 계획수량(plan_qty)에서 최초 1회 자동으로 가져옵니다. Start/Finish 기본 구간은 2년이며, 항목별로 자유롭게 수정·연장할 수 있습니다. 작업일수는 토/일/공휴일을 제외한 실제 근무일수 기준이며(원본 서식 수식과 동일) Start·Finish·작업일수 세 칸은 서로 맞물려 있습니다 — 작업일수를 직접 입력하면 Start는 그대로 두고 Finish가 자동 계산되고, Start를 고치면 작업일수는 그대로 두고 Finish가 다시 계산되며, Finish를 직접 고치면 작업일수가 다시 계산됩니다(2026-09-16). 시공물량=ROUND(계약물량/작업일수, 2), 투입인력=ROUNDUP(시공물량/1인시공물량, 0), 예상총투입인원=작업일수×투입인력 — 실행예산품의서(엑셀) "물량소화계획" 시트 수식과 동일합니다(2026-09-15). "기본목록으로 다시 채우기"는 작업일보 작업분류 기준으로 전체를 새로 채우며 기존 입력값은 사라집니다.</div>
     </div>
   </div>
 
@@ -2092,10 +2092,30 @@ function newMaterialRow(catName, range, planQty){
     unit: sikongUnitOf(catName),
     start: range.start,
     finish: range.finish,
+    workDays: networkDaysExclHolidays(range.start, range.finish),
     qty: planQty[catName] || 0,
     perDay: 0,
     note: ''
   };
+}
+/* networkDaysExclHolidays의 역산: 시작일 + 작업일수(토/일/공휴일 제외)로 종료일을 구한다.
+   =NETWORKDAYS(시작,종료,공휴일)-1 = workDays 이므로, 시작일부터 근무일을 (workDays+1)개
+   셀 때까지(시작일 자신도 근무일이면 1개로 센다) 지나온 마지막 근무일이 종료일이다. */
+function addWorkDaysFinish(startStr, workDays){
+  if(!startStr) return '';
+  workDays = Math.max(0, Math.round(+workDays||0));
+  var needed = workDays + 1;
+  var d = new Date(startStr+'T00:00:00');
+  var count = 0, finish = startStr;
+  for(var iter=0; iter<20000; iter++){
+    var ds = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    if(!isNonWorkDay(ds)){
+      count++; finish = ds;
+      if(count>=needed) break;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  return finish;
 }
 function loadMaterialPlan(forceReseed){
   materialSeeded = true;
@@ -2141,12 +2161,12 @@ function renderMaterialTable(){
       +'<td>'+(i+1)+'</td>'
       +'<td style="text-align:left;">'+esc(r.name)+'</td>'
       +'<td><input class="txi" style="width:56px;" value="'+esc(r.unit||'')+'" onchange="updMat('+i+',\'unit\',this.value)"></td>'
-      +'<td><input type="date" class="dtx" value="'+(r.start||'')+'" onchange="updMat('+i+',\'start\',this.value)"></td>'
-      +'<td><input type="date" class="dtx" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
+      +'<td><input type="date" class="dtx mat-start" value="'+(r.start||'')+'" onchange="updMat('+i+',\'start\',this.value)"></td>'
+      +'<td><input type="date" class="dtx mat-finish" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
       // 계약물량은 다른 qi칸(보통 1~3자리 계획인원용, 기본 56px)과 달리 100,000 단위까지도 나와서
       // 기본 폭으로는 숫자 스피너 화살표에 가려 잘려 보였다 — 이 칸만 폭을 넓힌다(2026-09-15).
       +'<td><input type="number" class="qi" style="width:92px;" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
-      +'<td class="mat-workdays">'+workDays+'</td>'
+      +'<td><input type="number" class="qi mat-workdays-input" style="width:56px;" min="0" step="1" value="'+workDays+'" onchange="updMat('+i+',\'workDays\',this.value)"></td>'
       +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(2):'0')+'</td>'
       +'<td><input type="number" class="qi" value="'+(r.perDay||0)+'" step="0.01" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
       +'<td class="mat-manpower">'+manpower+'</td>'
@@ -2200,7 +2220,8 @@ document.getElementById('matBody').addEventListener('click', function(e){
    G를 먼저 반올림해야 그 값을 기준으로 I가 정확히 올림되고, 화면 표시(toFixed(2))와도
    실제 계산에 쓰는 값이 같아진다. */
 function matDerived(r){
-  var workDays = networkDaysExclHolidays(r.start, r.finish);
+  // 예전 데이터(workDays 필드가 없던 저장분)는 시작~종료일로부터 계산해 채운다.
+  var workDays = (r.workDays!=null && r.workDays!=='') ? (+r.workDays||0) : networkDaysExclHolidays(r.start, r.finish);
   var perDayQty = workDays>0 ? Math.round((r.qty/workDays)*100)/100 : 0;
   var manpower = r.perDay>0 ? Math.ceil(perDayQty/r.perDay) : 0;
   return {workDays:workDays, perDayQty:perDayQty, manpower:manpower, totalManpower:Math.round(workDays*manpower)};
@@ -2208,14 +2229,34 @@ function matDerived(r){
 /* 값 하나 고칠 때마다 표 전체를 다시 그리면, onchange가 끝나기 전에 다음 입력칸이 통째로
    지워져서 Tab으로 넘어갈 때 포커스가 사라졌다(칸을 하나 채울 때마다 마우스로 다시 클릭해야
    했음). 이제 바뀐 행의 계산 결과 칸만 갈아끼운다 — 입력칸 DOM은 건드리지 않는다(2026-08-12). */
+/* Start/Finish/작업일수 세 칸은 서로 맞물려 있다 — 방금 고친 두 칸이 나머지 한 칸을 정한다.
+     · 작업일수를 고치면 → Start는 그대로 두고 Finish를 다시 계산(2026-09-16 사용자 요청)
+     · Start를 고치면 → 작업일수는 그대로 두고 Finish를 다시 계산(2026-09-16 사용자 요청)
+     · Finish를 고치면 → Start는 그대로 두고 작업일수를 다시 계산(기존 동작 유지) */
 function updMat(i, field, val){
-  if(field==='qty' || field==='perDay') val = +val || 0;
-  materialPlan[i][field] = val;
+  var r = materialPlan[i];
+  if(field==='qty' || field==='perDay' || field==='workDays') val = +val || 0;
+  if(field==='workDays'){
+    r.workDays = Math.max(0, Math.round(val));
+    if(!r.start) r.start = todayStr();
+    r.finish = addWorkDaysFinish(r.start, r.workDays);
+  } else if(field==='start'){
+    r.start = val;
+    if(r.workDays==null || r.workDays==='') r.workDays = networkDaysExclHolidays(r.start, r.finish);
+    r.finish = r.start ? addWorkDaysFinish(r.start, r.workDays) : r.finish;
+  } else if(field==='finish'){
+    r.finish = val;
+    r.workDays = networkDaysExclHolidays(r.start, r.finish);
+  } else {
+    r[field] = val;
+  }
   var row = document.querySelector('#matBody tr[data-i="'+i+'"]');
   if(!row){ renderMaterialTable(); return; }
-  var d = matDerived(materialPlan[i]);
+  var d = matDerived(r);
+  // 방금 입력한 칸이 아닌 쪽만 화면 값을 갈아끼운다(입력 중인 칸의 포커스/커서를 건드리지 않기 위해).
+  if(field!=='finish'){ var fEl=row.querySelector('.mat-finish'); if(fEl) fEl.value=r.finish||''; }
+  if(field!=='workDays'){ var wEl=row.querySelector('.mat-workdays-input'); if(wEl) wEl.value=d.workDays; }
   var set = function(sel, text){ var c=row.querySelector(sel); if(c) c.textContent=text; };
-  set('.mat-workdays', d.workDays);
   set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(2):'0');
   set('.mat-manpower', d.manpower);
   set('.mat-total', d.totalManpower);
