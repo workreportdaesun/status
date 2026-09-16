@@ -371,7 +371,7 @@ if(isMobileDevice){
       <div class="card">
         <h2>작업분류별 인원집계</h2>
         <div class="tablewrap"><div id="memCatSummaryWrap">불러오는 중...</div></div>
-        <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다. 관리자 분류는 직책별로 나누지 않고 "관리자" 한 줄로 묶어 보여줍니다. 칸의 인원수를 직접 고친 뒤 [적용]을 누르면 그 분류 안의 실제 근로자명단 직책이 바뀝니다 — 사람을 새로 만들거나 없앨 수는 없어서 입력한 숫자들의 합이 그 분류의 실제 총원과 같아야 하며(다르면 적용이 막히고 안내만 뜹니다), 옮길 사람이 필요하면 이름이 아직 "작업분류+번호"인 가등록 인원부터 먼저 옮기고 실명이 있는 사람은 최대한 그대로 둡니다.</div>
+        <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다. 관리자 분류는 직책별로 나누지 않고 "관리자" 한 줄로 묶어 보여줍니다. 칸의 인원수를 직접 고친 뒤 [적용]을 누르면 그 분류 안의 실제 근로자명단이 바뀝니다 — 입력한 숫자들의 합이 그 분류의 실제 총원보다 많아진 만큼은 [근로자명단 자동생성]과 같은 방식으로 "작업분류+번호" 가등록 인원이 명단에 새로 추가되고, 합이 실제 총원보다 적어지면(사람을 없앨 수는 없어서) 적용이 막히고 안내만 뜹니다. 직책을 옮길 사람이 필요하면 이름이 아직 "작업분류+번호"인 가등록 인원부터 먼저 옮기고 실명이 있는 사람은 최대한 그대로 둡니다.</div>
       </div>
     </div>
     <div class="mem-sub" id="memSub-list">
@@ -2005,16 +2005,16 @@ function renderMemberCatSummary(){
   // onCatSumInput/applyCatRowPositions가 인덱스(ci)만으로 분류명·실제총원을 찾을 수 있게 저장.
   memCatSummaryState = {cats:cats, catTotals:catTotals};
 }
-/* 인원집계 행 입력칸에 손이 갈 때마다 "입력합계/실제총원"을 즉시 보여준다 — 합계가 안 맞으면
-   [적용] 눌러도 막히므로(재배정표에서 사람을 새로 만들거나 없앨 수는 없어서), 누르기 전에
-   바로 알 수 있게 한다(2026-09-16 사용자 요청). */
+/* 인원집계 행 입력칸에 손이 갈 때마다 "입력합계/실제총원"을 즉시 보여준다 — 실제 총원보다
+   적으면(사람을 없앨 수는 없어서) [적용]이 막히므로 누르기 전에 바로 알 수 있게 한다. 실제
+   총원보다 많으면 늘어난 만큼 새로 추가되므로 빨강이 아니다(2026-09-16 사용자 요청). */
 function onCatSumInput(ci){
   var inputs = document.querySelectorAll('#memCatSummaryWrap input.csi[data-ci="'+ci+'"]');
   var sum = 0;
   inputs.forEach(function(el){ sum += Math.max(0, Math.round(+el.value||0)); });
   var st = memCatSummaryState, actual = st ? (st.catTotals[st.cats[ci]]||0) : 0;
   var hint = document.getElementById('catSumHint-'+ci);
-  if(hint) hint.innerHTML = '<span style="color:'+(sum===actual?'var(--ok)':'var(--err)')+';">'+sum+'/'+actual+'명</span>';
+  if(hint) hint.innerHTML = '<span style="color:'+(sum<actual?'var(--err)':'var(--ok)')+';">'+sum+'/'+actual+'명</span>';
 }
 /* 가등록 인원(이름이 "분류+번호"이고 소속이 "미정")인지 판별 — 직책을 옮길 때 실명이 있는
    사람보다 가등록 인원을 먼저 옮긴다(2026-09-16 사용자 요청: "가등록 인원 우선"). */
@@ -2022,8 +2022,21 @@ function isPlaceholderMember(m){
   if(!m || m.team!=='미정' || !m.cat) return false;
   return new RegExp('^'+m.cat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\d+$').test(m.name||'');
 }
+/* [근로자명단 자동생성]과 같은 "분류+번호" 이름 규칙을 이어서 다음 번호를 찾는다 —
+   이미 쓰인 번호와 겹치지 않게(2026-09-16). */
+function nextPlaceholderIndex(cat, members){
+  var re = new RegExp('^'+cat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\d+)$');
+  var max = 0;
+  members.forEach(function(m){
+    var mm = re.exec(m.name||'');
+    if(mm) max = Math.max(max, +mm[1]);
+  });
+  return max+1;
+}
 /* 인원집계 한 행(작업분류)의 입력값대로 실제 근로자명단의 직책을 재배정한다.
-   - 합계가 그 분류의 실제 총원과 다르면 막고 안내만 한다(사람을 새로 만들거나 없앨 수 없음).
+   - 입력 합계가 실제 총원보다 적으면 막고 안내만 한다(이 표에서 사람을 없앨 수는 없음).
+   - 입력 합계가 실제 총원보다 많으면, 그 늘어난 만큼 [근로자명단 자동생성]과 같은 방식으로
+     "분류+번호" 가등록 인원을 새로 만들어 명단에 추가한다(2026-09-16 사용자 요청).
    - 이미 원하는 직책에 있는 사람은 그대로 두고, 넘치는 직책의 인원 중 가등록 인원을 먼저
      옮겨 모자란 직책을 채운다 — 실명이 있는 사람의 직책은 꼭 필요할 때만 바뀐다. */
 async function applyCatRowPositions(ci){
@@ -2035,8 +2048,8 @@ async function applyCatRowPositions(ci){
   inputs.forEach(function(el){ counts[el.dataset.pos] = Math.max(0, Math.round(+el.value||0)); });
   var catMembers = membersList.filter(function(m){ return (m.cat||'(미지정)')===cat; });
   var totalReq = Object.keys(counts).reduce(function(a,p){ return a+counts[p]; },0);
-  if(totalReq !== catMembers.length){
-    showToast('⚠️ 합계가 실제 총원과 다릅니다 — 입력 합계 '+totalReq+'명 / 실제 '+catMembers.length+'명','var(--err)');
+  if(totalReq < catMembers.length){
+    showToast('⚠️ 합계가 실제 총원보다 적습니다 — 입력 합계 '+totalReq+'명 / 실제 '+catMembers.length+'명 (줄이려면 명단 탭에서 직접 정리해주세요)','var(--err)');
     return;
   }
   var byPos = {};
@@ -2057,21 +2070,40 @@ async function applyCatRowPositions(ci){
     for(var i=0;i<need;i++) deficits.push(p);
   });
   var changes = [];
-  for(var i=0;i<deficits.length;i++){
+  for(var i=0;i<Math.min(deficits.length, surplusPool.length);i++){
     var m = surplusPool[i];
     if(m && m.position !== deficits[i]) changes.push({id:m.id, name:m.name, position:deficits[i]});
   }
-  if(!changes.length){ showToast('바뀔 사람이 없습니다(이미 입력한 대로입니다)','var(--brand-2)'); return; }
-  if(!confirm(cat+' 분류에서 '+changes.length+'명의 직책이 바뀝니다:\n'
-      +changes.map(function(c){ return c.name+' → '+c.position; }).join('\n')+'\n\n계속할까요?')) return;
+  var newPositions = deficits.slice(surplusPool.length); // 재배정으로도 못 채운 몫 — 새로 만들어야 함
+  if(!changes.length && !newPositions.length){ showToast('바뀔 사람이 없습니다(이미 입력한 대로입니다)','var(--brand-2)'); return; }
+  var msg = '';
+  if(changes.length) msg += changes.length+'명의 직책이 바뀝니다:\n'+changes.map(function(c){ return c.name+' → '+c.position; }).join('\n')+'\n\n';
+  if(newPositions.length){
+    var byNewPos = {}; newPositions.forEach(function(p){ byNewPos[p]=(byNewPos[p]||0)+1; });
+    msg += newPositions.length+'명이 근로자명단에 새로 추가됩니다(이름은 나중에 실제 인원으로 고쳐 쓰세요):\n'
+      + Object.keys(byNewPos).map(function(p){ return p+' '+byNewPos[p]+'명'; }).join(', ')+'\n\n';
+  }
+  if(!confirm(cat+' 분류\n\n'+msg+'계속할까요?')) return;
   for(var i=0;i<changes.length;i++){
     var res = await sb.from('members').update({position:changes[i].position}).eq('id',changes[i].id);
     if(res.error){ showToast('⚠️ 저장 실패('+changes[i].name+'): '+res.error.message,'var(--err)'); }
   }
+  if(newPositions.length){
+    var menuGuess = (catMembers[0] && catMembers[0].menu) || '시공';
+    var nextIdx = nextPlaceholderIndex(cat, membersList);
+    var toCreate = newPositions.map(function(p, i){
+      return {name:cat+(nextIdx+i), cat:cat, menu:menuGuess, position:p, team:'미정', active:true};
+    });
+    var insRes = await sb.from('members').insert(toCreate);
+    if(insRes.error){ showToast('⚠️ 추가 실패: '+insRes.error.message,'var(--err)'); }
+  }
   await loadMembers();
   renderMemberCatSummary();
   renderMembersTab();
-  showToast('✅ '+changes.length+'명 직책을 반영했습니다','var(--ok)');
+  var parts = [];
+  if(changes.length) parts.push(changes.length+'명 직책 변경');
+  if(newPositions.length) parts.push(newPositions.length+'명 추가');
+  showToast('✅ 반영했습니다('+parts.join(', ')+')','var(--ok)');
 }
 // 공종(menu) 목록 — 작업일보 앱 login.html 회원가입의 목록과 동일(2026-09-16).
 var MEMBER_MENU_OPTIONS=['시공','품질','자재','안전','화기/유도'];
