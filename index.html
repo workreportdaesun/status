@@ -981,6 +981,9 @@ function isNonWorkDay(dateStr){ return isWeekend(dateStr) || !!holidayNameForDat
 async function init(){
   document.getElementById('hdrToday').textContent = todayStr();
   await loadAppSettings();
+  // 물량소화산출 탭을 열지 않고 인원투입계획/물량소화계획/인원동원계획만 봐도 작업일보에
+  // 새로 추가된 작업분류가 빠지지 않도록, 앱을 열 때마다 한 번 맞춰둔다(2026-09-16).
+  syncMaterialPlanCategories();
   applyReportRangeToInputs();
   await loadMembers();
   await loadPeriodData();
@@ -2336,25 +2339,39 @@ function addWorkDaysFinish(startStr, workDays){
   }
   return finish;
 }
-function loadMaterialPlan(forceReseed){
-  materialSeeded = true;
+/* 작업일보 쪽에서 나중에 작업분류가 새로 추가되면(cats_by_menu 연동), 이미 입력해둔 기존 행
+   (Start/Finish/계약물량 등)은 그대로 두고 새 분류만 뒤에 이어붙인다 — 추가만 하고 절대 지우거나
+   덮어쓰지 않아 안전하다. materialPlan이 비어 있으면(아직 한 번도 안 채워졌으면) 아무 것도
+   안 한다(그 경우는 loadMaterialPlan이 통째로 채움).
+   ⚠️ 예전엔 이 로직이 물량소화산출 탭을 "처음 열 때"(materialPlan이 비어 있을 때)만 실행돼서,
+   이미 다른 분류로 한 번 채워진 뒤에 작업일보에 새 분류가 추가되면(예: "HAND SWITCH") 물량소화
+   산출엔 영원히 안 나타나고, 그래서 인원투입계획/물량소화계획의 그 분류 계획(P)도 계속 0으로
+   빠지는 문제가 있었다(2026-09-16 발견) — 이제 init()에서 앱을 열 때마다 한 번씩 불러 맞춘다. */
+function syncMaterialPlanCategories(){
+  if(!materialPlan || !materialPlan.length) return 0;
   var monthStr = (appSettings.report_start_date||'').slice(0,7) || todayStr().slice(0,7);
-  var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
+  var range = defaultPlanRangeFromMonth(monthStr, 2);
   var planQty = appSettings.plan_qty || {};
-  if(materialPlan && materialPlan.length && !forceReseed){
-    // 작업일보 쪽에서 나중에 작업분류가 새로 추가되면(연동), 이미 입력해둔 기존 행(Start/Finish/계약물량 등)은
-    // 그대로 두고 새 분류만 뒤에 이어붙인다 — 강제로 다시 채우기(forceReseed)와 달리 기존 데이터를 안 건드림.
-    var existing = {}; materialPlan.forEach(function(r){ existing[r.name]=true; });
-    var added = 0;
-    sikongCategories().forEach(function(cat){
-      if(existing[cat]) return;
-      materialPlan.push(newMaterialRow(cat, range, planQty));
-      added++;
-    });
+  var existing = {}; materialPlan.forEach(function(r){ existing[r.name]=true; });
+  var added = 0;
+  sikongCategories().forEach(function(cat){
+    if(existing[cat]) return;
+    materialPlan.push(newMaterialRow(cat, range, planQty));
+    added++;
+  });
+  return added;
+}
+function loadMaterialPlan(){
+  materialSeeded = true;
+  if(materialPlan && materialPlan.length){
+    var added = syncMaterialPlanCategories();
     if(added) showToast('작업일보에 새로 추가된 작업분류 '+added+'개를 반영했습니다. 저장을 눌러주세요','var(--brand-2)');
     renderMaterialTable();
     return;
   }
+  var monthStr = (appSettings.report_start_date||'').slice(0,7) || todayStr().slice(0,7);
+  var range = defaultPlanRangeFromMonth(monthStr, 2);   // 기본 기간 2년(Start/Finish는 이후 표에서 행마다 자유롭게 수정·연장 가능)
+  var planQty = appSettings.plan_qty || {};
   materialPlan = sikongCategories().map(function(cat){ return newMaterialRow(cat, range, planQty); });
   renderMaterialTable();
   showToast('작업일보 작업분류 목록으로 채웠습니다(기본 기간 2년). 저장을 눌러 반영하세요','var(--brand-2)');
