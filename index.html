@@ -111,6 +111,10 @@ table.dt{border-collapse:separate; border-spacing:0; width:100%; font-size:12px;
       그래서 높이를 직접 고정하고 좌우 여백만 준다(표 셀은 세로 가운데 정렬이 기본). */
 table.dt th, table.dt td{border-right:1px solid var(--card-bd); padding:0 7px; height:25px; text-align:center;}
 table.dt tbody th, table.dt tbody td{border-top:1px solid var(--card-bd);}   /* 본문 행 구분선(라벨 칸이 th/td 섞여 있어 둘 다 포함) */
+/* 물량소화산출·근로자명단(명단)처럼 칸마다 입력창이 꽉 찬 표(dt-num1)는 입력창 테두리(옅은 하늘색
+   --field-bd)와 행 구분선(--card-bd)이 색이 비슷하고 간격도 좁아, 스크롤할 때 한 행이 어디서 끝나고
+   다음 행이 어디서 시작하는지 안 보인다는 지적(2026-09-16) — 행 구분선만 눈에 띄게 진하게 뺀다. */
+table.dt.dt-num1 tbody tr td{border-top:1px solid #9FB3C9;}
 table.dt thead tr:not(:first-child) th{border-top:1px solid var(--card-bd);}   /* 헤더는 첫 행(캡션)만 빼고 위쪽 선 — 캡션/월그룹/날짜 행 사이 구분 */
 /* 2026-08-07: 위처럼 맨 오른쪽 칸 테두리를 생략하고 .tablewrap 바깥 테두리에 맡겼더니, 표 폭이 화면(래퍼)보다
    좁을 때(열이 적은 주간/월간/인원동원계획 등) 마지막 열 오른쪽에 아무 선도 없이 그냥 빈 공간으로 뜨는
@@ -1378,7 +1382,7 @@ function renderAttendanceTable(cols, renderCount){
   var hiddenBody = hiddenCount ? '<td colspan="'+hiddenCount+'" class="vlazy"></td>' : '';
   // 헤더는 별도의 안 움직이는 표(.tw-head-clip)에, 본문은 스크롤되는 표(.tw-body-scroll)에 — 열 폭(colgroup)은 완전히 동일하게 맞춰서 정렬됨
   var headHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg
-    +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">이름</th><th class="lbl2" rowspan="'+rowspan+'">직책/구분</th><th colspan="'+(cols.length+1)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
+    +'<thead><tr class="period-cap"><th class="lbl" rowspan="'+rowspan+'">이름</th><th class="lbl2" rowspan="'+rowspan+'">구분</th><th colspan="'+(cols.length+1)+'"><span class="stick">'+periodCaptionText(cols)+'</span></th></tr>'
     +groupRow
     +'<tr>'+colHeadHtml(visCols)+hiddenHead+'<th>합계</th></tr></thead></table>';
   var bodyHtml = '<table class="dt dt-grid" style="width:'+tableW+'px">'+cg+'<tbody>';
