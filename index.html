@@ -2403,12 +2403,14 @@ function renderMaterialTable(){
       +'<td><input type="date" class="dtx mat-finish" value="'+(r.finish||'')+'" onchange="updMat('+i+',\'finish\',this.value)"></td>'
       // 계약물량은 다른 qi칸(보통 1~3자리 계획인원용, 기본 56px)과 달리 100,000 단위까지도 나와서
       // 기본 폭으로는 숫자 스피너 화살표에 가려 잘려 보였다 — 이 칸만 폭을 넓힌다(2026-09-15).
-      +'<td><input type="number" class="qi" style="width:92px;" value="'+(r.qty||0)+'" onchange="updMat('+i+',\'qty\',this.value)"></td>'
-      +'<td><input type="number" class="qi mat-workdays-input" style="width:56px;" min="0" step="1" value="'+workDays+'" onchange="updMat('+i+',\'workDays\',this.value)"></td>'
-      +'<td class="mat-perdayqty">'+(perDayQty?perDayQty.toFixed(1):'0')+'</td>'
-      +'<td><input type="number" class="qi mat-perday-input" value="'+(r.perDay||0)+'" step="0.1" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
-      +'<td class="mat-manpower">'+manpower+'</td>'
-      +'<td class="mat-total">'+totalManpower+'</td>'
+      // type="text"+쉼표 표시(2026-09-16) — type="number"는 쉼표를 입력 자체가 안 돼서 큰 숫자를
+      // 천 단위로 끊어 타이핑할 수 없었다. onblur에서 다시 정리된 쉼표 표기로 맞춰 보여준다.
+      +'<td><input type="text" inputmode="numeric" class="qi mat-qty-input" style="width:92px;" value="'+fmtNum(r.qty||0)+'" oninput="matNumInput(this)" onchange="updMat('+i+',\'qty\',this.value)"></td>'
+      +'<td><input type="text" inputmode="numeric" class="qi mat-workdays-input" style="width:56px;" value="'+fmtNum(workDays)+'" oninput="matNumInput(this)" onchange="updMat('+i+',\'workDays\',this.value)"></td>'
+      +'<td class="mat-perdayqty">'+(perDayQty?fmtNum(perDayQty,1):'0')+'</td>'
+      +'<td><input type="text" inputmode="decimal" class="qi mat-perday-input" value="'+fmtNum(r.perDay||0)+'" oninput="matNumInput(this)" onchange="updMat('+i+',\'perDay\',this.value)"></td>'
+      +'<td class="mat-manpower">'+fmtNum(manpower)+'</td>'
+      +'<td class="mat-total">'+fmtNum(totalManpower)+'</td>'
       +'<td><input class="txi" value="'+esc(r.note||'')+'" onchange="updMat('+i+',\'note\',this.value)"></td>'
       // 작업일보에서 작업분류를 지워도 여기 행은 그대로 남는데, 예전엔 지울 방법이 "기본목록으로
       // 다시 채우기"(입력값 전멸)뿐이었다 — 행 단위 삭제를 붙임(2026-08-12).
@@ -2458,6 +2460,22 @@ document.getElementById('matBody').addEventListener('click', function(e){
    G를 먼저 반올림해야 그 값을 기준으로 I가 정확히 올림되고, 화면 표시(toFixed(1))와도
    실제 계산에 쓰는 값이 같아진다. 1인시공물량 입력단위(소숫점 한 자리, 2026-09-16)에 맞춰
    G의 반올림 자리수도 2자리에서 1자리로 맞춤. */
+// 물량소화산출 숫자칸에 천 단위 구분 쉼표를 쓰기 위한 변환 — type="number"는 쉼표를 아예 못 받아서
+// (브라우저가 입력 자체를 막음) 큰 숫자(계약물량 700,000 등)를 그대로 타이핑할 수 없었다(2026-09-16
+// 사용자 요청). type="text"로 바꾸고 표시할 땐 쉼표를 넣고, 읽을 땐 쉼표를 떼고 숫자로 되돌린다.
+function fmtNum(n, decimals){
+  n = +n || 0;
+  return decimals ? n.toLocaleString('en-US', {minimumFractionDigits:decimals, maximumFractionDigits:decimals})
+                   : n.toLocaleString('en-US');
+}
+function parseNumInput(s){
+  return +String(s||'').replace(/,/g,'').trim() || 0;
+}
+// 타이핑하는 동안 숫자·쉼표·점·마이너스 아닌 글자만 걸러낸다(형식은 onchange에서 fmtNum으로 다시 맞춤).
+function matNumInput(el){
+  var cleaned = el.value.replace(/[^0-9,.\-]/g,'');
+  if(cleaned!==el.value) el.value = cleaned;
+}
 function matDerived(r){
   // 예전 데이터(workDays 필드가 없던 저장분)는 시작~종료일로부터 계산해 채운다.
   var workDays = (r.workDays!=null && r.workDays!=='') ? (+r.workDays||0) : networkDaysExclHolidays(r.start, r.finish);
@@ -2513,7 +2531,8 @@ function positionPlannedManpowerInMonth(pos, monthStr){
      · Finish를 고치면 → Start는 그대로 두고 작업일수를 다시 계산(기존 동작 유지) */
 function updMat(i, field, val){
   var r = materialPlan[i];
-  if(field==='qty' || field==='perDay' || field==='workDays') val = +val || 0;
+  // qty/perDay/workDays는 이제 type="text"+쉼표 표시라 parseNumInput으로 쉼표를 떼고 숫자로 바꾼다(2026-09-16).
+  if(field==='qty' || field==='perDay' || field==='workDays') val = parseNumInput(val);
   // 1인시공물량은 소숫점 한 자리까지만 받는다(2026-09-16 사용자 요청).
   if(field==='perDay') val = Math.round(val*10)/10;
   if(field==='workDays'){
@@ -2533,14 +2552,16 @@ function updMat(i, field, val){
   var row = document.querySelector('#matBody tr[data-i="'+i+'"]');
   if(!row){ renderMaterialTable(); return; }
   var d = matDerived(r);
-  // 방금 입력한 칸이 아닌 쪽만 화면 값을 갈아끼운다(입력 중인 칸의 포커스/커서를 건드리지 않기 위해).
+  // onchange는 포커스가 빠져나간 뒤에만 불리므로, 방금 입력한 칸 자신도 이제 쉼표 정리된
+  // 표기로 다시 써도 커서가 흔들리지 않는다 — 나머지(입력 중이 아니었던) 칸도 같이 갈아끼운다.
+  if(field==='qty'){ var qEl=row.querySelector('.mat-qty-input'); if(qEl) qEl.value=fmtNum(r.qty); }
   if(field!=='finish'){ var fEl=row.querySelector('.mat-finish'); if(fEl) fEl.value=r.finish||''; }
-  if(field!=='workDays'){ var wEl=row.querySelector('.mat-workdays-input'); if(wEl) wEl.value=d.workDays; }
-  if(field==='perDay'){ var pEl=row.querySelector('.mat-perday-input'); if(pEl) pEl.value=r.perDay; }
+  if(field!=='workDays'){ var wEl=row.querySelector('.mat-workdays-input'); if(wEl) wEl.value=fmtNum(d.workDays); }
+  if(field==='perDay'){ var pEl=row.querySelector('.mat-perday-input'); if(pEl) pEl.value=fmtNum(r.perDay); }
   var set = function(sel, text){ var c=row.querySelector(sel); if(c) c.textContent=text; };
-  set('.mat-perdayqty', d.perDayQty?d.perDayQty.toFixed(1):'0');
-  set('.mat-manpower', d.manpower);
-  set('.mat-total', d.totalManpower);
+  set('.mat-perdayqty', d.perDayQty?fmtNum(d.perDayQty,1):'0');
+  set('.mat-manpower', fmtNum(d.manpower));
+  set('.mat-total', fmtNum(d.totalManpower));
 }
 async function saveMaterialPlan(){
   var res = await sb.from('app_settings').update({material_plan:materialPlan}).eq('id','global');
