@@ -154,7 +154,7 @@ table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(-
    페이지 바탕색(--bg)을 그대로 써서 카드 바깥과 톤이 자연스럽게 맞는다. 일부러 낮은 특이도
    (.alt-row + 요소 선택자만)로 둬서, hol/sat/sun/cf-ok/cf-warn/cf-err/flag.on/lbl 등 칸마다의 의미 있는 배경
    (아래 더 구체적인 규칙)은 소스 순서와 무관하게 항상 이 줄무늬보다 우선한다. */
-.alt-row td, .alt-row th{background:var(--bg);}
+.alt-row td, .alt-row th{background:#E6ECF3;}   /* --bg(#F0F4F8)는 흰 배경과 너무 비슷해 줄무늬가 잘 안 보여서 더 진하게(2026-09-16) */
 /* 이름/직책 라벨 칸을 이제 캡션 행(1행)에 rowspan으로 병합해 넣는데, 그 행의 일반 규칙(위 68번째 줄)이
    특이도가 더 높아서 배경/고정(sticky)을 덮어써버리므로, 라벨 칸만 다시 되돌림. */
 table.dt thead tr.period-cap th.lbl, table.dt thead tr.period-cap th.lbl2{position:sticky; background:var(--field-bg); color:var(--ink); font-size:12px; z-index:7;}
