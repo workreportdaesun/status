@@ -148,6 +148,13 @@ table.dt thead tr.period-cap th span.stick{position:sticky; left:8px; display:in
 table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
 table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
 table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(--field-bg); z-index:3; text-align:left;}
+/* 출력일지(사람=5행)·인원투입계획/물량소화계획(분류=2행)처럼 한 항목이 여러 행에 걸치는 표는
+   항목 사이가 전부 흰 배경이라, 구분선(위 #9FB3C9) 하나만으론 스크롤 중에 어디서 다음 항목으로
+   넘어갔는지 잘 안 보인다는 재지적(2026-09-16)으로 한 항목 걸러 옅은 줄무늬(.alt-row)를 준다 —
+   페이지 바탕색(--bg)을 그대로 써서 카드 바깥과 톤이 자연스럽게 맞는다. 일부러 낮은 특이도
+   (.alt-row + 요소 선택자만)로 둬서, hol/sat/sun/cf-*/flag.on/lbl 등 칸마다의 의미 있는 배경
+   (아래 더 구체적인 규칙)은 소스 순서와 무관하게 항상 이 줄무늬보다 우선한다. */
+.alt-row td, .alt-row th{background:var(--bg);}
 /* 이름/직책 라벨 칸을 이제 캡션 행(1행)에 rowspan으로 병합해 넣는데, 그 행의 일반 규칙(위 68번째 줄)이
    특이도가 더 높아서 배경/고정(sticky)을 덮어써버리므로, 라벨 칸만 다시 되돌림. */
 table.dt thead tr.period-cap th.lbl, table.dt thead tr.period-cap th.lbl2{position:sticky; background:var(--field-bg); color:var(--ink); font-size:12px; z-index:7;}
@@ -1390,10 +1397,11 @@ function renderAttendanceTable(cols, renderCount){
   if(!cols.length){
     bodyHtml += '<tr><td colspan="3" style="text-align:center;color:var(--lbl);">표시할 데이터가 없습니다</td></tr>';
   } else {
+    var blockIdx = 0;   // 사람 블록마다 한 칸씩 늘려 홀/짝으로 줄무늬 배경을 매김(간접/직접 구간을 이어서)
     bodyHtml += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'"><span class="stick">간접인원</span></td></tr>';
-    mgmt.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody); });
+    mgmt.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody, (blockIdx++)%2===1); });
     bodyHtml += '<tr class="sec-row"><td colspan="'+(cols.length+3)+'"><span class="stick">직접인원</span></td></tr>';
-    field.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody); });
+    field.forEach(function(m){ bodyHtml += memberBlockHtml(m, cols, visCols, hiddenBody, (blockIdx++)%2===1); });
   }
   bodyHtml += '</tbody></table>';
   document.getElementById('attTableHead').innerHTML = headHtml;
@@ -1414,8 +1422,9 @@ function renderAttendanceTable(cols, renderCount){
 }
 // visCols: 실제로 <td>를 그릴 열(가상 스크롤 대상이면 cols의 앞부분만). hiddenBody: 안 그린 뒤쪽 열을 대신할 회색 칸(콜스팬) —
 // 합계는 화면에 아직 안 그려진 열도 포함해서(cols 전체 기준) 항상 정확하게 계산함.
-function memberBlockHtml(m, cols, visCols, hiddenBody){
+function memberBlockHtml(m, cols, visCols, hiddenBody, alt){
   visCols = visCols || cols; hiddenBody = hiddenBody || '';
+  var altAttr = alt ? ' class="alt-row"' : '';
   var rec = attByMemberDate[m.id] || {};
   /* 기본·연장도 관리자가 셀을 눌러 넣고 뺄 수 있다(2026-08-11 사용자 요청). 출퇴근 앱을 안 쓰는
      인원은 GPS 기록이 안 쌓여 주/월차가 영영 0이었다 — 여기서 출근을 채우면 daily_reports.crew에
@@ -1430,7 +1439,7 @@ function memberBlockHtml(m, cols, visCols, hiddenBody){
   ];
   var html='';
   rows.forEach(function(r,i){
-    html += '<tr>';
+    html += '<tr'+altAttr+'>';
     if(i===0) html += '<th class="lbl" rowspan="5">'+esc(m.name)+'</th>';
     html += '<td class="lbl2">'+r.key+'</td>';
     visCols.forEach(function(c){
@@ -1708,8 +1717,11 @@ function renderPositionTable(cols, renderCount){
     var editCell = viewMode==='day'
       ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="saveCatPlanQty('+idx+',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' '+esc(row.cat)+' 1일 계획인원(M/D)">')
       : '';
-    return '<tr><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
-      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
+    // 분류 2행(P/A-F)이 전부 흰 배경이라 스크롤 중 항목 경계가 안 보인다는 지적(2026-09-16)으로
+    // catRowList() 순서(idx) 기준 한 항목 걸러 줄무늬(.alt-row)를 준다.
+    var altAttr = idx%2===1 ? ' class="alt-row"' : '';
+    return '<tr'+altAttr+'><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+      + '<tr'+altAttr+'><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
   }
   var rows = catRowList();
   if(!cols.length || !rows.length){
@@ -1819,8 +1831,9 @@ function renderCatTable(cols, renderCount){
     var editCell = viewMode==='day'
       ? ('<br><input type="number" class="qi" autocomplete="off" style="width:44px;margin-top:4px;" value="'+(editVal||'')+'" min="0" onchange="saveCatPlanQty('+idx+',this.value,\''+editMonthStr+'\')" title="'+editMonthStr+' '+esc(row.cat)+' 1일 계획인원(M/D)">')
       : '';
-    return '<tr><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
-      + '<tr><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
+    var altAttr = idx%2===1 ? ' class="alt-row"' : '';   // 항목 경계 안 보인다는 지적(2026-09-16) — 한 항목 걸러 줄무늬
+    return '<tr'+altAttr+'><td class="lbl" rowspan="2">'+esc(row.cat)+editCell+'</td><td class="lbl2">P</td>'+planRow+hiddenBody+'<td>'+(planTotal||'')+'</td><td rowspan="2"><span class="badge '+badgeCls+'">'+rate+'%</span></td></tr>'
+      + '<tr'+altAttr+'><td class="lbl2">A/F</td>'+actRow+hiddenBody+'<td class="'+totalCf+'">'+(actTotal||'')+'</td></tr>';
   }
   var rows = catRowList();
   if(!cols.length || !rows.length){
