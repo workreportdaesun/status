@@ -371,7 +371,7 @@ if(isMobileDevice){
       <div class="card">
         <h2>작업분류별 인원집계</h2>
         <div class="tablewrap"><div id="memCatSummaryWrap">불러오는 중...</div></div>
-        <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다. 관리자 분류는 직책별로 나누지 않고 "관리자" 한 줄로 묶어 보여줍니다. 칸의 인원수를 직접 고친 뒤 [적용]을 누르면 그 분류 안의 실제 근로자명단이 바뀝니다 — 입력한 숫자들의 합이 그 분류의 실제 총원보다 많아진 만큼은 [근로자명단 자동생성]과 같은 방식으로 "작업분류+번호" 가등록 인원이 명단에 새로 추가되고, 합이 실제 총원보다 적어지면(사람을 없앨 수는 없어서) 적용이 막히고 안내만 뜹니다. 직책을 옮길 사람이 필요하면 이름이 아직 "작업분류+번호"인 가등록 인원부터 먼저 옮기고 실명이 있는 사람은 최대한 그대로 둡니다.</div>
+        <div class="note">근로자명단을 작업분류(행) × 직책(열)으로 교차 집계한 것입니다 — 전화번호·소속 등 검색과 무관하게 항상 전체 등록 인원 기준입니다. 행(작업분류)·열(직책) 모두 등록 인원이 0명이어도 목록에 있는 건 항상 다 보여줍니다(물량소화산출·물량소화계획·인원동원계획·인원투입계획과 같은 원칙). 맨 오른쪽 "합계"는 그 분류의 전체 인원, 맨 아래 "합계"는 그 직책의 전체 인원입니다. 관리자 분류는 직책별로 나누지 않고 "관리자" 한 줄로 묶어 보여줍니다. 칸의 인원수를 직접 고친 뒤 [적용]을 누르면 그 분류 안의 실제 근로자명단이 바뀝니다 — 입력한 숫자들의 합이 그 분류의 실제 총원보다 많아진 만큼은 [근로자명단 자동생성]과 같은 방식으로 "작업분류+번호" 가등록 인원이 명단에 새로 추가되고, 합이 실제 총원보다 적어지면(사람을 없앨 수는 없어서) 적용이 막히고 안내만 뜹니다. 직책을 옮길 사람이 필요하면 이름이 아직 "작업분류+번호"인 가등록 인원부터 먼저 옮기고 실명이 있는 사람은 최대한 그대로 둡니다.</div>
       </div>
     </div>
     <div class="mem-sub" id="memSub-list">
@@ -1973,7 +1973,10 @@ function renderMemberCatSummary(){
   });
   var catOrderBase = sikongCategories();
   var catExtra = Object.keys(catTotals).filter(function(c){ return catOrderBase.indexOf(c)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
-  var cats = catOrderBase.concat(catExtra).filter(function(c){ return catTotals[c]; });
+  // sikongCategories()(작업분류 표준 목록)는 등록 인원이 0명이어도 항상 행으로 다 보여준다 —
+  // 물량소화산출·물량소화계획·인원동원계획·인원투입계획과 같은 원칙(2026-09-16 사용자 요청).
+  // 목록에 없는 값(catExtra)만 실제로 쓰인 것만 덧붙인다.
+  var cats = catOrderBase.concat(catExtra.filter(function(c){ return catTotals[c]; }));
   var posExtra = Object.keys(posTotals).filter(function(p){ return FIELD_POSITIONS.indexOf(p)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
   // FIELD_POSITIONS(직접인원, 인원동원계획과 동일 목록)는 인원이 0명이어도 항상 열로 다 보여준다 —
   // 나머지(목록에 없는 값)만 실제로 쓰인 것만 덧붙인다(2026-09-16 사용자 요청).
@@ -1995,7 +1998,7 @@ function renderMemberCatSummary(){
     var applyCell = editable
       ? '<td style="white-space:nowrap;"><button type="button" class="btn sm ghost" onclick="applyCatRowPositions('+ci+')">적용</button> <span id="catSumHint-'+ci+'" style="font-size:11px;"></span></td>'
       : '<td></td>';
-    return '<tr><td style="text-align:left;">'+esc(cat)+'</td>'+cells+'<td class="lbl">'+catTotals[cat]+'</td>'+applyCell+'</tr>';
+    return '<tr><td style="text-align:left;">'+esc(cat)+'</td>'+cells+'<td class="lbl">'+(catTotals[cat]||'')+'</td>'+applyCell+'</tr>';
   }).join('');
   if(!bodyHtml) bodyHtml = '<tr><td colspan="'+(positions.length+3)+'" style="text-align:center;color:var(--lbl);padding:18px;">등록된 인원이 없습니다</td></tr>';
   var totCells = positions.map(function(p){ return '<td>'+(posTotals[p]||'')+'</td>'; }).join('');
