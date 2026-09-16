@@ -145,9 +145,14 @@ table.dt thead tr.period-cap th{position:static; background:var(--field-bg); col
    훨씬 많이 스크롤해야 겨우 고정되므로, 캡션만 왼쪽 정렬로 바꿔 sec-row와 동일하게 예측 가능히 동작하게 함. */
 table.dt thead tr.period-cap th{text-align:left;}
 table.dt thead tr.period-cap th span.stick{position:sticky; left:8px; display:inline-block;}
-table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3;}
-table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left;}
-table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(--field-bg); z-index:3; text-align:left;}
+/* 이 파일 89번째 줄 주석에도 있듯 이 브라우저 환경에서 position:sticky가 스크롤 중 다시 그리기가
+   불안정한 문제가 실측으로 확인됐다(헤더는 이미 그래서 sticky 대신 별도 고정 영역으로 뺐음) — 왼쪽
+   고정열(이름/직책·구분)은 구조를 바꾸기 어려워 그대로 sticky를 쓰되, translateZ(0)로 GPU 레이어를
+   강제로 따로 둬서 처음 그릴 때부터 배경·줄무늬가 바로 보이게 한다(2026-09-16, "스크롤해야 구분선이
+   생긴다" 지적에 대한 조치). */
+table.dt tbody th{background:var(--field-bg); font-weight:700; text-align:left; position:sticky; left:0; z-index:3; transform:translateZ(0);}
+table.dt td.lbl, table.dt th.lbl{position:sticky; left:0; background:var(--field-bg); z-index:3; text-align:left; transform:translateZ(0);}
+table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(--field-bg); z-index:3; text-align:left; transform:translateZ(0);}
 /* 출력일지(사람=5행)·인원투입계획/물량소화계획(분류=2행)처럼 한 항목이 여러 행에 걸치는 표는
    항목 사이가 전부 흰 배경이라, 구분선(위 #9FB3C9) 하나만으론 스크롤 중에 어디서 다음 항목으로
    넘어갔는지 잘 안 보인다는 재지적(2026-09-16)으로 한 항목 걸러 옅은 줄무늬(.alt-row)를 준다 —
