@@ -195,6 +195,8 @@ table.dt td.flag.on{background:var(--ok-solid); color:#fff;}
    입력칸이 있는 표(물량소화산출·인원동원계획)도 출력일지와 행 높이가 같아진다. */
 table.dt td input.qi, table.dt td input.dtx, table.dt td input.txi{
   height:21px; padding:0 4px; box-sizing:border-box; border:1px solid var(--field-bd); border-radius:0; font-size:12px;}
+/* 근로자명단(명단) 편집용 — 위 input.txi와 높이·테두리는 맞추되 select는 폭을 셀에 꽉 채운다(2026-09-16). */
+table.dt td select.msel{width:100%; height:21px; padding:0 2px; box-sizing:border-box; border:1px solid var(--field-bd); border-radius:0; font-size:12px; font-family:var(--font-body);}
 /* ── 첫번째 열 기준(2026-08-13) ────────────────────────────────────────────
    근로자명단·물량소화산출의 1열이 정렬·폭·굵기가 제각각이라 탭을 옮길 때마다 들쭉날쭉했다.
    1열 내용이 두 종류라 폭만 따로 간다.
@@ -383,7 +385,7 @@ if(isMobileDevice){
           <span style="font-size:12px;color:var(--lbl);margin-left:auto;" id="memCount"></span>
         </div>
         <div class="tablewrap"><div id="memTableWrap">불러오는 중...</div></div>
-        <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 직책·작업분류·소속 수정은 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요. 이름이 "작업분류+번호"(예: DCS PANEL1)이고 직책이 "기타"·소속이 "미정"인 인원은 물량소화산출 탭의 [근로자명단 자동생성]으로 만들어진 가등록 인원입니다 — 실제 인원이 정해지면 이름·전화번호·직책·소속을 실제 값으로 고쳐 쓰면 됩니다.</div>
+        <div class="note">회원가입/체크인 앱에 등록된 실제 인원 명단입니다. 성명·직책·전화번호·공종·작업분류·AREA·소속을 이 표에서 바로 고칠 수 있고, 고치는 즉시 저장됩니다(전화번호는 로그인 아이디로 쓰이므로 바꿀 때 한 번 더 확인합니다) — 등업(권한 등급) 변경·강제 탈퇴는 여전히 작업일보 앱 관리자 화면 &gt; 회원관리에서 해주세요. 이름이 "작업분류+번호"(예: DCS PANEL1)이고 직책이 "기타"·소속이 "미정"인 인원은 물량소화산출 탭의 [근로자명단 자동생성]으로 만들어진 가등록 인원입니다 — 실제 인원이 정해지면 이 표에서 바로 실제 값으로 고쳐 쓰면 됩니다.</div>
       </div>
     </div>
   </div>
@@ -1967,6 +1969,18 @@ function renderMemberCatSummary(){
   document.getElementById('memCatSummaryWrap').innerHTML =
     '<table class="dt"><thead><tr>'+headHtml+'</tr></thead><tbody>'+bodyHtml+'</tbody></table>';
 }
+// 공종(menu) 목록 — 작업일보 앱 login.html 회원가입의 목록과 동일(2026-09-16).
+var MEMBER_MENU_OPTIONS=['시공','품질','자재','안전','화기/유도'];
+function memberSelectHtml(id, field, cur, options){
+  var opts = ['<option value=""'+(!cur?' selected':'')+'></option>'].concat(options.map(function(o){
+    return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';
+  }));
+  if(cur && options.indexOf(cur)===-1) opts.push('<option selected>'+esc(cur)+'</option>');
+  return '<select class="msel mem-field" data-id="'+id+'" data-field="'+field+'">'+opts.join('')+'</select>';
+}
+function memberInputHtml(id, field, cur, type){
+  return '<input type="'+(type||'text')+'" class="txi mem-field" style="width:100%;" data-id="'+id+'" data-field="'+field+'" value="'+esc(cur||'')+'">';
+}
 function renderMembersTab(){
   var qEl = document.getElementById('memSearch');
   var q = (qEl ? qEl.value : '').trim().toLowerCase();
@@ -1976,10 +1990,17 @@ function renderMembersTab(){
   document.getElementById('memCount').textContent =
     q ? ('검색 '+list.length+'명 / 총 '+all.length+'명') : ('총 '+all.length+'명');
   var rows = list.map(function(m,i){
-    return '<tr><td>'+(i+1)+'</td><td style="text-align:left;">'+esc(m.name)+'</td><td>'+esc(m.position||'')+'</td>'
-      +'<td>'+esc(m.phone||'')+'</td><td>'+esc(m.menu||'')+'</td><td>'+esc(m.cat||'')+'</td>'
-      +'<td>'+esc(m.area||'')+'</td><td>'+esc(m.team||'')+'</td>'
-      +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td></tr>';
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td style="text-align:left;">'+memberInputHtml(m.id,'name',m.name)+'</td>'
+      +'<td>'+memberSelectHtml(m.id,'position',m.position,MGMT_POSITIONS.concat(FIELD_POSITIONS))+'</td>'
+      +'<td>'+memberInputHtml(m.id,'phone',m.phone,'tel')+'</td>'
+      +'<td>'+memberSelectHtml(m.id,'menu',m.menu,MEMBER_MENU_OPTIONS)+'</td>'
+      +'<td>'+memberInputHtml(m.id,'cat',m.cat)+'</td>'
+      +'<td>'+memberInputHtml(m.id,'area',m.area)+'</td>'
+      +'<td>'+memberInputHtml(m.id,'team',m.team)+'</td>'
+      +'<td>'+(m.created_at?String(m.created_at).slice(0,10):'')+'</td>'
+      +'</tr>';
   }).join('');
   if(!rows) rows = '<tr><td colspan="9" style="text-align:center;color:var(--lbl);padding:18px;">검색 결과가 없습니다</td></tr>';
   // 근무여부 열 삭제(2026-08-13 사용자 요청). membersList가 active!==false로 이미 걸러진 상태라
@@ -1988,6 +2009,32 @@ function renderMembersTab(){
   document.getElementById('memTableWrap').innerHTML =
     '<table class="dt dt-num1"><thead><tr><th>번호</th><th>성명</th><th>직책</th><th>전화번호</th><th>공종</th><th>작업분류</th><th>AREA</th><th>소속</th><th>등록일</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
+/* 근로자명단을 이 화면에서 직접 고칠 수 있게 함(2026-09-16 사용자 요청) — 지금까지는
+   "수정은 작업일보 앱 관리자 화면에서" 안내만 하고 읽기 전용이었는데, 물량소화산출에서
+   자동생성한 가등록 인원(이름="작업분류+번호")을 실명으로 바꾸려면 매번 다른 앱으로
+   건너가야 해서 불편했다. members는 출퇴근체크·작업일보와 공유하는 실제 테이블이고
+   전화번호는 로그인 아이디로 쓰이므로, 전화번호를 바꿀 때만 한 번 더 확인창을 띄운다
+   (작업일보 admin.html의 회원관리와 같은 안전장치). */
+document.getElementById('memTableWrap').addEventListener('change', async function(e){
+  var el = e.target.closest ? e.target.closest('.mem-field') : null;
+  if(!el) return;
+  var id = el.dataset.id, field = el.dataset.field;
+  var val = el.value.trim();
+  var m = membersById[id];
+  if(field==='name' && !val){ showToast('⚠️ 성명은 비울 수 없습니다','var(--err)'); renderMembersTab(); return; }
+  if(field==='phone'){
+    val = val.replace(/\D/g,'');
+    if(val && val.length<10){ showToast('⚠️ 전화번호는 숫자 10자리 이상이어야 합니다','var(--err)'); renderMembersTab(); return; }
+    if(val && !confirm((m?m.name+'님의 ':'이 인원의 ')+'전화번호를 '+val+'(으)로 변경합니다.\n이 번호로 로그인하게 되니 정확히 확인해주세요.')){ renderMembersTab(); return; }
+  }
+  var patch={}; patch[field]=val;
+  var res = await sb.from('members').update(patch).eq('id', id);
+  if(res.error){ showToast('⚠️ 저장 실패: '+res.error.message,'var(--err)'); renderMembersTab(); return; }
+  await loadMembers();
+  renderMembersTab();
+  renderMemberCatSummary();
+  showToast('✅ 저장됨','var(--ok)');
+});
 
 // ---------- 공휴일 ----------
 function ensureHolidayYearOptions(){
