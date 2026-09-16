@@ -1951,7 +1951,9 @@ function renderMemberCatSummary(){
   var catExtra = Object.keys(catTotals).filter(function(c){ return catOrderBase.indexOf(c)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
   var cats = catOrderBase.concat(catExtra).filter(function(c){ return catTotals[c]; });
   var posExtra = Object.keys(posTotals).filter(function(p){ return FIELD_POSITIONS.indexOf(p)===-1; }).sort(function(a,b){ return a.localeCompare(b,'ko'); });
-  var positions = FIELD_POSITIONS.concat(posExtra).filter(function(p){ return posTotals[p]; });
+  // FIELD_POSITIONS(직접인원, 인원동원계획과 동일 목록)는 인원이 0명이어도 항상 열로 다 보여준다 —
+  // 나머지(목록에 없는 값)만 실제로 쓰인 것만 덧붙인다(2026-09-16 사용자 요청).
+  var positions = FIELD_POSITIONS.concat(posExtra.filter(function(p){ return posTotals[p]; }));
 
   var headHtml = '<th style="text-align:left;">작업분류</th>'
     + positions.map(function(p){ return '<th>'+esc(p)+'</th>'; }).join('')
