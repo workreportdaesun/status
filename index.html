@@ -152,7 +152,7 @@ table.dt td.lbl2, table.dt th.lbl2{position:sticky; left:130px; background:var(-
    항목 사이가 전부 흰 배경이라, 구분선(위 #9FB3C9) 하나만으론 스크롤 중에 어디서 다음 항목으로
    넘어갔는지 잘 안 보인다는 재지적(2026-09-16)으로 한 항목 걸러 옅은 줄무늬(.alt-row)를 준다 —
    페이지 바탕색(--bg)을 그대로 써서 카드 바깥과 톤이 자연스럽게 맞는다. 일부러 낮은 특이도
-   (.alt-row + 요소 선택자만)로 둬서, hol/sat/sun/cf-*/flag.on/lbl 등 칸마다의 의미 있는 배경
+   (.alt-row + 요소 선택자만)로 둬서, hol/sat/sun/cf-ok/cf-warn/cf-err/flag.on/lbl 등 칸마다의 의미 있는 배경
    (아래 더 구체적인 규칙)은 소스 순서와 무관하게 항상 이 줄무늬보다 우선한다. */
 .alt-row td, .alt-row th{background:var(--bg);}
 /* 이름/직책 라벨 칸을 이제 캡션 행(1행)에 rowspan으로 병합해 넣는데, 그 행의 일반 규칙(위 68번째 줄)이
