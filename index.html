@@ -456,7 +456,7 @@ if(isMobileDevice){
         </div>
         <div class="chartpane"><canvas id="mobChart"></canvas></div>
       </div>
-      <div class="note">직책별 계획인원을 월 단위로 보여주는 화면입니다. <b>간접인원(관리자 직책)</b>은 물량소화산출에 대응하는 항목이 없어 이 표에서 그대로 손으로 입력합니다 · <b>직접인원</b>은 물량소화산출에서 자동 계산됩니다(그 달과 Start~Finish가 겹치는 작업분류들의 투입인력을 CAT_POSITION_MAP대로 직책별로 나눠 합산 — 더는 여기서 입력하지 않습니다). <b>단, 화기감시자·유도원·신호수는 물량소화산출과 무관하게 현장 배치 상황에 따라 달라지므로 자동계산에서 빠져 있습니다</b> — 근로자명단 탭의 인원집계에서 직접 수량을 넣어주세요. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 값을 그대로 더한 값).</div>
+      <div class="note">직책별 계획인원을 월 단위로 보여주는 화면입니다. <b>간접인원(관리자 직책)</b>은 물량소화산출에 대응하는 항목이 없어 이 표에서 그대로 손으로 입력합니다 · <b>직접인원</b>은 물량소화산출에서 자동 계산됩니다(그 달과 Start~Finish가 겹치는 작업분류들의 투입인력을, 근로자명단에 이미 등록된 실제 직책 비율대로 나눠 합산 — 아직 한 명도 등록 안 된 분류만 CAT_POSITION_MAP 기본 비율을 씁니다. 더는 여기서 입력하지 않습니다). <b>단, 화기감시자·유도원·신호수는 물량소화산출과 무관하게 현장 배치 상황에 따라 달라지므로 자동계산에서 빠져 있습니다</b> — 근로자명단 탭의 인원집계에서 직접 수량을 넣어주세요. 맨 아래 합계 행은 그 달에 동원되는 전체 직책의 계획인원 합입니다(M/D 환산 없이 직책별 값을 그대로 더한 값).</div>
     </div>
   </div>
 
@@ -1994,15 +1994,20 @@ function renderMemberCatSummary(){
 
   var headHtml = '<th style="text-align:left;">작업분류</th>'
     + positions.map(function(p){ return '<th>'+esc(p)+'</th>'; }).join('')
-    + '<th>합계</th>';
+    + '<th>합계</th><th>목표(물량소화산출)</th>';
   // 행(작업분류)마다 직책별 인원수를 직접 고쳐 입력해두고, 위 [일괄적용]을 한 번 누르면 고친
   // 줄을 전부 한꺼번에 실제 근로자명단(members)에 반영한다(2026-09-16 사용자 요청 — 줄마다
   // 따로 [적용]을 누르던 것에서 일괄 처리로 변경). "관리자" 행은 열이 MGMT_POSITIONS라 이
   // 표의 열(FIELD_POSITIONS)과 안 맞으므로 그대로 읽기 전용으로 둔다.
-  var editableCis = [];
+  // 목표(물량소화산출 투입인력)보다 늘려서 신규 등록할 수는 없다 — 실제 총원이 이미 목표를
+  // 넘어섰다면(예: 데이터 정리 전) 그 값까지는 유지·재배정 허용(2026-09-17 사용자 요청).
+  var editableCis = [], catCaps = {};
   var bodyHtml = cats.map(function(cat, ci){
     var editable = cat !== '관리자';
     if(editable) editableCis.push(ci);
+    var target = catTargetManpower(cat);
+    var cap = Math.max(target, catTotals[cat]||0);
+    catCaps[cat] = cap;
     var cells = positions.map(function(p){
       var n = (counts[cat]||{})[p]||0;
       if(!editable) return '<td>'+(n||'')+'</td>';
@@ -2011,27 +2016,34 @@ function renderMemberCatSummary(){
     var totalCell = editable
       ? (catTotals[cat]||0)+' <span id="catSumHint-'+ci+'" style="font-size:11px;"></span>'
       : (catTotals[cat]||'');
-    return '<tr><td style="text-align:left;">'+esc(cat)+'</td>'+cells+'<td class="lbl">'+totalCell+'</td></tr>';
+    var targetCell = editable ? (target||0)+'명' : '-';
+    return '<tr><td style="text-align:left;">'+esc(cat)+'</td>'+cells+'<td class="lbl">'+totalCell+'</td><td>'+targetCell+'</td></tr>';
   }).join('');
-  if(!bodyHtml) bodyHtml = '<tr><td colspan="'+(positions.length+2)+'" style="text-align:center;color:var(--lbl);padding:18px;">등록된 인원이 없습니다</td></tr>';
+  if(!bodyHtml) bodyHtml = '<tr><td colspan="'+(positions.length+3)+'" style="text-align:center;color:var(--lbl);padding:18px;">등록된 인원이 없습니다</td></tr>';
   var totCells = positions.map(function(p){ return '<td>'+(posTotals[p]||'')+'</td>'; }).join('');
-  bodyHtml += '<tr class="tot-row"><td class="lbl" style="text-align:left;">합계</td>'+totCells+'<td class="lbl">'+grand+'</td></tr>';
+  bodyHtml += '<tr class="tot-row"><td class="lbl" style="text-align:left;">합계</td>'+totCells+'<td class="lbl">'+grand+'</td><td></td></tr>';
   document.getElementById('memCatSummaryWrap').innerHTML =
     '<table class="dt"><thead><tr>'+headHtml+'</tr></thead><tbody>'+bodyHtml+'</tbody></table>';
-  // onCatSumInput/applyAllCatRowPositions가 인덱스(ci)만으로 분류명·실제총원을 찾을 수 있게 저장.
-  memCatSummaryState = {cats:cats, catTotals:catTotals};
+  // onCatSumInput/applyAllCatRowPositions가 인덱스(ci)만으로 분류명·실제총원·목표 상한을 찾을 수 있게 저장.
+  memCatSummaryState = {cats:cats, catTotals:catTotals, catCaps:catCaps};
   editableCis.forEach(function(ci){ onCatSumInput(ci); });   // 방금 그린 값 기준으로 입력합계/실제총원 힌트를 바로 채움
 }
 /* 인원집계 행 입력칸에 손이 갈 때마다 "입력합계/실제총원"을 즉시 보여준다 — 실제 총원보다
-   적으면(사람을 없앨 수는 없어서) [적용]이 막히므로 누르기 전에 바로 알 수 있게 한다. 실제
-   총원보다 많으면 늘어난 만큼 새로 추가되므로 빨강이 아니다(2026-09-16 사용자 요청). */
+   적으면(사람을 없앨 수는 없어서), 또는 물량소화산출 목표 인원(catCaps)을 넘으면 [적용]이
+   막히므로 누르기 전에 바로 알 수 있게 한다(2026-09-17, 목표 초과 조건 추가). */
 function onCatSumInput(ci){
   var inputs = document.querySelectorAll('#memCatSummaryWrap input.csi[data-ci="'+ci+'"]');
   var sum = 0;
   inputs.forEach(function(el){ sum += Math.max(0, Math.round(+el.value||0)); });
-  var st = memCatSummaryState, actual = st ? (st.catTotals[st.cats[ci]]||0) : 0;
+  var st = memCatSummaryState;
+  var cat = st ? st.cats[ci] : null;
+  var actual = st ? (st.catTotals[cat]||0) : 0;
+  var cap = st ? (st.catCaps[cat]||0) : 0;
   var hint = document.getElementById('catSumHint-'+ci);
-  if(hint) hint.innerHTML = '<span style="color:'+(sum<actual?'var(--err)':'var(--ok)')+';">'+sum+'/'+actual+'명</span>';
+  if(!hint) return;
+  if(sum<actual) hint.innerHTML = '<span style="color:var(--err);">'+sum+'/'+actual+'명</span>';
+  else if(sum>cap) hint.innerHTML = '<span style="color:var(--err);">'+sum+'/'+actual+'명(목표 '+cap+'명 초과)</span>';
+  else hint.innerHTML = '<span style="color:var(--ok);">'+sum+'/'+actual+'명</span>';
 }
 /* 가등록 인원(이름이 "분류+번호"이고 소속이 "미정")인지 판별 — 직책을 옮길 때 실명이 있는
    사람보다 가등록 인원을 먼저 옮긴다(2026-09-16 사용자 요청: "가등록 인원 우선"). */
@@ -2052,15 +2064,19 @@ function nextPlaceholderIndex(cat, members){
 }
 /* 인원집계 한 행(작업분류)의 입력값대로 실제 근로자명단의 직책을 재배정한다.
    - 입력 합계가 실제 총원보다 적으면 막고 안내만 한다(이 표에서 사람을 없앨 수는 없음).
-   - 입력 합계가 실제 총원보다 많으면, 그 늘어난 만큼 [근로자명단 자동생성]과 같은 방식으로
-     "분류+번호" 가등록 인원을 새로 만들어 명단에 추가한다(2026-09-16 사용자 요청).
+   - 입력 합계가 물량소화산출 목표 인원(cap)을 넘으면 막는다 — 목표보다 더 뽑을 수는 없음
+     (2026-09-17 사용자 요청). 단, 실제 총원이 이미 목표를 넘어선 상태면 cap이 실제 총원까지
+     같이 올라가 있어(catCaps 계산식 참고) 기존 인원 재배정까지 막히지는 않는다.
+   - 입력 합계가 실제 총원보다 많으면(목표 이내), 그 늘어난 만큼 [근로자명단 자동생성]과 같은
+     방식으로 "분류+번호" 가등록 인원을 새로 만들어 명단에 추가한다(2026-09-16 사용자 요청).
    - 이미 원하는 직책에 있는 사람은 그대로 두고, 넘치는 직책의 인원 중 가등록 인원을 먼저
      옮겨 모자란 직책을 채운다 — 실명이 있는 사람의 직책은 꼭 필요할 때만 바뀐다. */
 // 입력값(counts) 하나를 읽어 "누구 직책을 바꾸고, 몇 명을 새로 만들어야 하는지" 계산만 한다 —
 // DB 호출·confirm·toast는 안 하므로 일괄적용에서 여러 분류를 모아 한 번에 처리할 때 재사용한다.
-function computeCatRowPlan(cat, counts, catMembers){
+function computeCatRowPlan(cat, counts, catMembers, cap){
   var totalReq = Object.keys(counts).reduce(function(a,p){ return a+counts[p]; },0);
-  if(totalReq < catMembers.length) return {blocked:true, totalReq:totalReq, actual:catMembers.length};
+  if(totalReq < catMembers.length) return {blocked:'under', totalReq:totalReq, actual:catMembers.length};
+  if(cap!=null && totalReq > cap) return {blocked:'over', totalReq:totalReq, actual:catMembers.length, cap:cap};
   var byPos = {};
   catMembers.forEach(function(m){ (byPos[m.position||''] = byPos[m.position||''] || []).push(m); });
   var surplusPool = [];
@@ -2111,18 +2127,23 @@ async function applyAllCatRowPositions(){
       counts[el.dataset.pos] = Math.max(0, Math.round(+el.value||0));
     });
     var catMembers = membersList.filter(function(m){ return (m.cat||'(미지정)')===cat; });
-    var plan = computeCatRowPlan(cat, counts, catMembers);
-    if(plan.blocked){ blocked.push({cat:cat, totalReq:plan.totalReq, actual:plan.actual}); return; }
+    var cap = st.catCaps ? st.catCaps[cat] : null;
+    var plan = computeCatRowPlan(cat, counts, catMembers, cap);
+    if(plan.blocked){ blocked.push({cat:cat, totalReq:plan.totalReq, actual:plan.actual, cap:plan.cap, reason:plan.blocked}); return; }
     if(plan.changes.length || plan.newPositions.length) plans.push({cat:cat, changes:plan.changes, newPositions:plan.newPositions, catMembers:catMembers});
   });
   if(!plans.length && !blocked.length){ showToast('바뀔 내용이 없습니다(이미 입력한 대로입니다)','var(--brand-2)'); return; }
   var totalChanges = plans.reduce(function(s,p){ return s+p.changes.length; },0);
   var totalNew = plans.reduce(function(s,p){ return s+p.newPositions.length; },0);
+  var underBlocked = blocked.filter(function(b){ return b.reason==='under'; });
+  var overBlocked = blocked.filter(function(b){ return b.reason==='over'; });
   var msg = '';
   if(plans.length) msg += plans.length+'개 분류에서 총 '+totalChanges+'명 직책 변경, '+totalNew+'명 신규 추가:\n'
     + plans.map(function(p){ return p.cat+'('+(p.changes.length+p.newPositions.length)+'명)'; }).join(', ')+'\n\n';
-  if(blocked.length) msg += '⚠️ 합계가 실제 총원보다 적어 건너뛴 분류(사람을 없앨 수는 없음):\n'
-    + blocked.map(function(b){ return b.cat+' (입력 '+b.totalReq+'명/실제 '+b.actual+'명)'; }).join(', ')+'\n\n';
+  if(underBlocked.length) msg += '⚠️ 합계가 실제 총원보다 적어 건너뛴 분류(사람을 없앨 수는 없음):\n'
+    + underBlocked.map(function(b){ return b.cat+' (입력 '+b.totalReq+'명/실제 '+b.actual+'명)'; }).join(', ')+'\n\n';
+  if(overBlocked.length) msg += '⚠️ 물량소화산출 목표 인원을 초과해 건너뛴 분류:\n'
+    + overBlocked.map(function(b){ return b.cat+' (입력 '+b.totalReq+'명/목표 '+b.cap+'명)'; }).join(', ')+'\n\n';
   if(!plans.length){ showToast('⚠️ 적용할 내용이 없습니다 — '+msg,'var(--err)'); return; }
   if(!confirm(msg+'계속할까요?')) return;
   for(var i=0;i<plans.length;i++){
@@ -2510,18 +2531,53 @@ function catPlannedManpowerOnDay(cat, dateStr){
   if(!r || !r.start || !r.finish || dateStr<r.start || dateStr>r.finish) return 0;
   return matDerived(r).manpower;
 }
-// 작업분류의 투입인력(N명)을 CAT_POSITION_MAP대로 나눈다 — [근로자명단 자동생성]이 실제 인원을
-// 만들 때 쓰는 것과 똑같이 positionForCat(cat, 0..N-1)을 돌려 직책별로 몇 명인지 센다.
-function catPositionSplit(cat, manpower){
+// 그 작업분류의 물량소화산출 투입인력(동시 투입인원) — 인원집계에서 직책을 재배정/증원할 때
+// 넘지 말아야 할 목표 인원으로 쓴다(2026-09-17 사용자 요청). Start~Finish와 무관하게 물량소화산출에
+// 입력된 값 그대로 쓴다(인원집계는 날짜별 화면이 아니라 "지금 이 분류에 몇 명이 필요한가"만 봄).
+function catTargetManpower(cat){
+  var r = materialRowByCat(cat);
+  return r ? matDerived(r).manpower : 0;
+}
+// 그 작업분류에 실제 등록된 근로자명단 인원을 직책별로 센다(관리자 등 직책 없는 인원은 제외).
+function catPositionCounts(cat){
   var counts = {};
-  for(var i=0;i<manpower;i++){
-    var pos = positionForCat(cat, i);
-    counts[pos] = (counts[pos]||0) + 1;
-  }
+  membersList.forEach(function(m){
+    if((m.cat||'')!==cat || !m.position) return;
+    counts[m.position] = (counts[m.position]||0) + 1;
+  });
   return counts;
 }
+// 작업분류의 투입인력(N명)을 나눈다 — 그 작업분류에 이미 등록된 근로자명단이 있으면 그 실제
+// 직책 비율대로 N을 나누고(2026-09-17 사용자 요청, 인원동원계획이 CAT_POSITION_MAP의 가정 비율이
+// 아니라 실제 배치 현황을 반영하도록), 아직 한 명도 등록되지 않은 분류는(예: 근로자명단 자동생성
+// 전) CAT_POSITION_MAP/TEAM_OF_4 기본 비율로 대체한다.
+function catPositionSplit(cat, manpower){
+  var real = catPositionCounts(cat);
+  var realTotal = 0;
+  for(var p in real) realTotal += real[p];
+  if(!realTotal){
+    var counts = {};
+    for(var i=0;i<manpower;i++){
+      var pos = positionForCat(cat, i);
+      counts[pos] = (counts[pos]||0) + 1;
+    }
+    return counts;
+  }
+  // 실제 등록 비율대로 N을 나누되(반올림), 반올림 오차는 실제 인원이 가장 많은 직책에 몰아
+  // 합계가 N과 정확히 맞도록 한다.
+  var positions = Object.keys(real).sort(function(a,b){ return real[b]-real[a]; });
+  var out = {}, assigned = 0;
+  positions.forEach(function(pos){
+    var share = Math.round(manpower * real[pos] / realTotal);
+    out[pos] = share; assigned += share;
+  });
+  var diff = manpower - assigned;
+  if(diff) out[positions[0]] = (out[positions[0]]||0) + diff;
+  return out;
+}
 // 그 달에 이 직책으로 계획된 인원 — 그 달과 Start~Finish가 겹치는 모든 작업분류의 투입인력을
-// CAT_POSITION_MAP대로 나눠 더한다(월 단위라 날짜별 정밀도는 없음 — 인원동원계획 전용).
+// catPositionSplit(실제 등록 비율, 없으면 CAT_POSITION_MAP 기본 비율)대로 나눠 더한다
+// (월 단위라 날짜별 정밀도는 없음 — 인원동원계획 전용).
 function positionPlannedManpowerInMonth(pos, monthStr){
   var monthStart = monthStr+'-01', monthEnd = monthStr+'-31';
   var total = 0;
