@@ -1309,8 +1309,11 @@ function dataColWidthForMode(wrapId, cols, trailingCount){
   }
   // 주간/월간은 라벨 기준 최소폭만 쓰던 탓에 열이 적으면 표가 창 왼쪽에만 붙어 우측이 빈 화면으로 남았음 —
   // 이제는 열 수와 관계없이 창 폭을 열 수로 나눠 항상 오른쪽 끝까지 채운다(2026-08-11 요청).
+  // 열이 너무 많으면(예: 예상시작일~완료일이 넓어 월 수가 20개가 넘는 경우) full이 라벨 폭보다도 좁아져
+  // 숫자·월 라벨이 겹쳐 보이는 문제가 있었다(2026-09-17) — 그럴 땐 라벨이 안 잘리는 measured를 최소 보장선으로
+  // 쓰고, 대신 표가 창보다 넓어져 가로 스크롤이 생기게 한다(day 모드와 같은 방식).
   var full = fillDataColWidth(wrapId, cols.length, GRID_LBL1_W+GRID_LBL2_W+GRID_TAIL_W*(trailingCount||1));
-  if(full) return full;
+  if(full) return Math.max(full, measured);
   return measured<GRID_DATA_MIN ? GRID_DATA_MIN : measured;   // 탭이 숨겨져 폭을 못 잰 경우의 예비값
 }
 // 표 맨 첫 줄에 넣을 캡션 — 실제 표시되는 시작~끝 구간을 "YYYY년 M월 ~ YYYY년 M월"로 표시(한 달 안에 다 들어오면 한 번만)
@@ -1852,9 +1855,10 @@ function renderMobilizationTable(){
   // 칸 안에 계획인원 입력창(input.qi, 폭 56px 고정)이 들어가므로, 월 라벨("2026-03") 글자 폭뿐 아니라
   // 입력창+좌우 여백(padding 7px*2)도 넉넉히 들어가는 폭을 보장해야 함 — 라벨 기준 폭만 쓰면 입력창이 잘렸음(2026-08-07).
   // 월 수와 관계없이 창 폭을 월 열 수로 나눠 항상 오른쪽 끝까지 채운다(2026-08-11 요청) —
-  // 폭을 못 잰 경우(탭이 숨겨진 상태)에만 라벨/입력창 기준 예비폭을 씀.
-  var dataW = fillDataColWidth('mobTableWrap', months.length, GRID_LBL1_W)
-    || (months.length ? Math.max(measureMaxLabelWidth(months)+18, 56+18, GRID_DATA_MIN) : GRID_DATA_MIN);
+  // 단, 예상시작일~완료일이 넓어 월 수가 많아지면 채움폭이 이 최소 보장폭보다 좁아져 라벨·입력창이 겹쳐
+  // 보이는 문제가 있었다(2026-09-17) — 그럴 땐 최소 보장폭을 쓰고 가로 스크롤이 생기게 한다.
+  var minW = months.length ? Math.max(measureMaxLabelWidth(months)+18, 56+18, GRID_DATA_MIN) : GRID_DATA_MIN;
+  var dataW = Math.max(fillDataColWidth('mobTableWrap', months.length, GRID_LBL1_W), minW);
   var tableW = stretchTableWidth('mobTableWrap', GRID_LBL1_W + months.length*dataW);
   var cg = mobColGroupHtml(months.length, dataW);
   function monthStrOf(c){ return c.days.length ? c.days[0].slice(0,7) : c.label; }
